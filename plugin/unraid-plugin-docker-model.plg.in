@@ -21,7 +21,7 @@
   name="unraid-plugin-docker-model"
   author="zhz8888"
   version="@@VERSION@@"
-  pluginURL="https://raw.githubusercontent.com/zhz8888/unraid-plugin-docker-model/main/plugin/unraid-plugin-docker-model.plg"
+  pluginURL="https://github.com/zhz8888/unraid-plugin-docker-model/releases/latest/download/unraid-plugin-docker-model.plg"
   support="https://github.com/zhz8888/unraid-plugin-docker-model/issues"
   min="7.0.0"
 >

@@ -22,7 +22,11 @@
 2. CI（`.github/workflows/build.yml`）会自动构建并附加产物到 Release
 3. 确认 Release 里同时有 `unraid-plugin-docker-model-1.2.9-x86_64-1.txz`
    和 `unraid-plugin-docker-model.plg`
-4. 确认 `pluginURL` 指向的 raw URL 可访问
+4. 确认 `pluginURL`（`releases/latest/download/unraid-plugin-docker-model.plg`）可访问
+
+> 生成的 `.plg` 是构建产物（`dist/` 被 gitignore），因此通过 Release 资产分发，
+> 不提交进仓库。`pluginURL` 与下载链接都使用 GitHub 的
+> `releases/latest/download/<asset>` 稳定地址，换版本时无需改 URL。
 
 手动发布（不走 CI 时）：
 
@@ -90,7 +94,7 @@ CA 模板示例（放在独立 repo 的 `templates/` 下）：
   <Repository>zhz8888/unraid-plugin-docker-model</Repository>
   <Category>Tools: Utilities</Category>
   <Description>Docker Model Runner CLI plugin for Unraid</Description>
-  <Plugin>https://raw.githubusercontent.com/zhz8888/unraid-plugin-docker-model/main/plugin/unraid-plugin-docker-model.plg</Plugin>
+  <Plugin>https://github.com/zhz8888/unraid-plugin-docker-model/releases/latest/download/unraid-plugin-docker-model.plg</Plugin>
 </Container>
 ```
 
