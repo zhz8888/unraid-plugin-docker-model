@@ -47,7 +47,7 @@
 
 **已完成**（2026-10-26 首次发布；2026-10-27 重新发版，补上代理版插件文件）：
 
-1. ✅ 打 tag 并推送：`refs/tags/1.2.9` 已前移到本次发版提交并推送到 origin
+1. ✅ 打 tag 并推送：`refs/tags/1.2.9` → `701429a`（本次发版提交），已推送到 origin
 2. ✅ CI（`.github/workflows/build.yml`）自动构建并附加产物，Release 由 `github-actions[bot]` 创建
 3. ✅ Release 1.2.9 含三个资产：
    - `unraid-plugin-docker-model-1.2.9-x86_64-1.txz`
