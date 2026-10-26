@@ -14,6 +14,29 @@
 
 > 参考实现：`unraid/unraid-tailscale` 的 `plugin/tailscale.plg`（结构最标准）。
 
+### 两个 `.plg`：直连版与代理版
+
+构建产物有两个插件文件，来自同一个模板 `plugin/unraid-plugin-docker-model.plg.in`：
+
+| 文件 | 下载来源 |
+|---|---|
+| `unraid-plugin-docker-model.plg` | GitHub Release 资产，直连 |
+| `unraid-plugin-docker-model-proxy.plg` | 同一资产，经 `https://gh-proxy.org/` 代理 |
+
+两者**只有三处不同**：`pluginURL` 属性、`<URL>` 下载地址、`<CHANGES>` 里的一句来源说明。
+插件名、`<FILE Name>` 缓存路径、安装/卸载脚本、SHA256 全部相同，因此装出来的是同一个包。
+
+代理规则就是把 GitHub 链接整体拼到代理前缀后面：
+
+```
+https://gh-proxy.org/https://github.com/<owner>/<repo>/releases/download/<tag>/<file>
+```
+
+代理返回的是原始字节，所以 SHA256 不变，`verify-release.sh` 对代理版的校验结果与直连版一致。
+
+> 两个文件**只需安装其中一个**。插件名相同，同时放在 `/boot/config/plugins/` 不会冲突，
+> 但会让 `/etc/rc.d/rc.local` 在每次开机时把同一个包装两遍。
+
 ## 二、为什么是「CLI 插件 + 容器」两层
 
 ```mermaid

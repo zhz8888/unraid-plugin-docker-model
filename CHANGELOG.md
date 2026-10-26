@@ -11,8 +11,19 @@ Version numbers track the upstream `docker-model-plugin` release that is bundled
 
 ### Added
 
+- Mirrored plugin file `unraid-plugin-docker-model-proxy.plg` for networks that
+  cannot reach GitHub. It installs the identical package, with the same SHA256,
+  but downloads it through `https://gh-proxy.org/`
 - GitHub Actions workflows for build verification and upstream version checks
 - Issue and pull request templates
+
+### Changed
+
+- The plugin template now renders two plugin files from a single source; the
+  plugin URL, the download URL and the source note are the only differences
+- `lint-plg.sh` checks every `.plg` in `dist/`, and `verify-release.sh` checks
+  that the direct and the mirrored variant reference the same package and
+  checksum
 
 ## [1.2.9] - 2026-10-26
 

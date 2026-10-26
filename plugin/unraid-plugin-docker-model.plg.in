@@ -5,7 +5,16 @@
   unraid-plugin-docker-model.plg : Unraid plugin definition
   Rendered by scripts/build-plugin.sh from the .plg.in template.
   Placeholders wrapped in double at-signs are replaced with the actual
-  version, filenames and checksums at build time.
+  version, filenames, checksums and download URLs at build time.
+
+  This single template produces two plugin files:
+    - unraid-plugin-docker-model.plg         downloads from GitHub directly
+    - unraid-plugin-docker-model-proxy.plg   downloads through the
+      gh-proxy.org mirror, for networks that cannot reach github.com
+  Everything else (the plugin name, the install and uninstall scripts, the
+  cached package path and the SHA256) is identical, because both variants
+  install the very same package. Only the plugin URL, the download URL and the
+  source note differ between the two renders.
 
   Unraid plugin mechanics:
     - This file lives in /boot/config/plugins/. At boot, /etc/rc.d/rc.local
@@ -21,7 +30,7 @@
   name="unraid-plugin-docker-model"
   author="zhz8888"
   version="@@VERSION@@"
-  pluginURL="https://github.com/zhz8888/unraid-plugin-docker-model/releases/latest/download/unraid-plugin-docker-model.plg"
+  pluginURL="@@PLG_URL@@"
   support="https://github.com/zhz8888/unraid-plugin-docker-model/issues"
   min="7.0.0"
 >
@@ -34,6 +43,7 @@
 - First release: brings the Docker Model Runner CLI plugin (`docker model`) to Unraid
 - Binary taken from the official Docker apt artifact `docker-model-plugin_@@VERSION@@`, verified byte for byte via SHA256
 - Once installed, `docker model install-runner` deploys the runner container
+- @@SOURCE_NOTE@@
 
 ### Background
 
@@ -49,7 +59,7 @@ This plugin fills that gap.
      CLI plugin binary (Slackware txz, installed by upgradepkg)
      ============================================================ -->
 <FILE Name="/boot/config/plugins/unraid-plugin-docker-model/@@TXZ_NAME@@">
-<URL>https://github.com/zhz8888/unraid-plugin-docker-model/releases/download/@@VERSION@@/@@TXZ_NAME@@</URL>
+<URL>@@TXZ_URL@@</URL>
 <SHA256>@@TXZ_SHA256@@</SHA256>
 </FILE>
 

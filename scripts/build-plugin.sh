@@ -11,7 +11,8 @@
 #      Unraid ships neither ar nor dpkg-deb)
 #   4. Extract usr/libexec/docker/cli-plugins/docker-model from data.tar.xz
 #   5. Pack a Slackware txz (with install/slack-desc, required by upgradepkg)
-#   6. Render the .plg with the txz SHA256 baked in
+#   6. Render two .plg files from one template, with the txz SHA256 baked in:
+#      a direct one and one that downloads through the gh-proxy.org mirror
 #
 # Usage:
 #   ./scripts/build-plugin.sh
@@ -29,6 +30,16 @@ DMR_UBUNTU="${DMR_UBUNTU:-noble}"      # 22.04=jammy 24.04=noble
 # Unraid plugin name (also used as the .plg filename, the flash cache
 # directory name, and the Slackware package name prefix)
 PLUGIN_NAME="unraid-plugin-docker-model"
+
+# Repository the release assets are published under. The direct .plg and the
+# mirrored .plg are both rendered from the same template against this repo.
+REPO_SLUG="zhz8888/unraid-plugin-docker-model"
+
+# Mirror for networks that cannot reach github.com directly. The proxy takes
+# the whole target URL as its path, so a GitHub release asset becomes
+#   https://gh-proxy.org/https://github.com/<owner>/<repo>/releases/...
+# The proxy returns the original bytes, so the SHA256 does not change.
+GH_PROXY="https://gh-proxy.org/"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PKG_DIR="${REPO_ROOT}/pkg"
@@ -311,22 +322,34 @@ TXZ_SHA256="$(sha256_of "${DIST_DIR}/${TXZ_NAME}")"
 TXZ_SIZE=$(wc -c < "${DIST_DIR}/${TXZ_NAME}" | tr -d ' ')
 log "txz: ${TXZ_SIZE} bytes  SHA256=${TXZ_SHA256:0:16}..."
 
-# ---------------------------------------------------------------- 5. render the .plg
-log "rendering ${PLUGIN_NAME}.plg ..."
+# ---------------------------------------------------------------- 5. render the .plg files
+log "rendering ${PLUGIN_NAME}.plg and ${PLUGIN_NAME}-proxy.plg ..."
 PLG_TEMPLATE="${REPO_ROOT}/plugin/${PLUGIN_NAME}.plg.in"
 [ -f "${PLG_TEMPLATE}" ] || die "template not found: ${PLG_TEMPLATE}"
 
+RELEASE_BASE="https://github.com/${REPO_SLUG}/releases"
+DIRECT_TXZ_URL="${RELEASE_BASE}/download/${DMR_VERSION}/${TXZ_NAME}"
+DIRECT_PLG_URL="${RELEASE_BASE}/latest/download/${PLUGIN_NAME}.plg"
+PROXY_TXZ_URL="${GH_PROXY}${DIRECT_TXZ_URL}"
+PROXY_PLG_URL="${GH_PROXY}${RELEASE_BASE}/latest/download/${PLUGIN_NAME}-proxy.plg"
+
 # Substitute placeholders with python to avoid sed -i differences
 # between BSD and GNU userlands
-python3 - "${PLG_TEMPLATE}" "${DIST_DIR}/${PLUGIN_NAME}.plg" \
-  "${DMR_VERSION}" "${TXZ_NAME}" "${TXZ_SHA256}" "${TXZ_SIZE}" "${SLACK_ARCH}" "${PLUGIN_NAME}" <<'PY'
+render_plg() {
+  local out="$1" plg_url="$2" txz_url="$3" note="$4"
+  python3 - "${PLG_TEMPLATE}" "${out}" \
+    "${DMR_VERSION}" "${TXZ_NAME}" "${TXZ_SHA256}" "${TXZ_SIZE}" "${SLACK_ARCH}" \
+    "${PLUGIN_NAME}" "${plg_url}" "${txz_url}" "${note}" <<'PY'
 import sys
-tmpl, out, ver, txz, sha, size, arch, name = sys.argv[1:9]
+tmpl, out, ver, txz, sha, size, arch, name, plg_url, txz_url, note = sys.argv[1:12]
 text = open(tmpl, encoding='utf-8').read()
 repl = {
     '@@VERSION@@': ver,
     '@@TXZ_NAME@@': txz,
     '@@TXZ_SHA256@@': sha,
+    '@@PLG_URL@@': plg_url,
+    '@@TXZ_URL@@': txz_url,
+    '@@SOURCE_NOTE@@': note,
     # Not referenced by the current template, but kept available so a
     # template can use them without touching the build script.
     '@@TXZ_SIZE@@': size,
@@ -338,6 +361,15 @@ for k, v in repl.items():
 open(out, 'w', encoding='utf-8').write(text)
 print('written', out)
 PY
+}
+
+render_plg "${DIST_DIR}/${PLUGIN_NAME}.plg" \
+  "${DIRECT_PLG_URL}" "${DIRECT_TXZ_URL}" \
+  "The plugin package is downloaded from the GitHub Release assets directly."
+
+render_plg "${DIST_DIR}/${PLUGIN_NAME}-proxy.plg" \
+  "${PROXY_PLG_URL}" "${PROXY_TXZ_URL}" \
+  "The plugin package is downloaded from the GitHub Release assets through the gh-proxy.org mirror, for networks that cannot reach github.com directly."
 
 log "done"
 echo
@@ -347,3 +379,7 @@ echo
 echo "  install on Unraid with:"
 echo "    cp dist/${PLUGIN_NAME}.plg /boot/config/plugins/"
 echo "    plugin install /boot/config/plugins/${PLUGIN_NAME}.plg"
+echo
+echo "  or, on a network that cannot reach github.com:"
+echo "    cp dist/${PLUGIN_NAME}-proxy.plg /boot/config/plugins/"
+echo "    plugin install /boot/config/plugins/${PLUGIN_NAME}-proxy.plg"

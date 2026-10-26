@@ -28,15 +28,46 @@ FAIL=0
 if [ $# -eq 0 ]; then
   log "verifying the local dist/ artifacts"
 
-  PLG="${DIST}/unraid-plugin-docker-model.plg"
-  [ -f "${PLG}" ] || die "missing ${PLG}"
+  PLGS=("${DIST}/unraid-plugin-docker-model.plg"
+        "${DIST}/unraid-plugin-docker-model-proxy.plg")
 
-  # 1. Pull the txz filename and the expected SHA256 out of the plg
-  TXZ_NAME=$(grep -o 'unraid-plugin-docker-model-[0-9.]*-[a-z0-9_]*-1\.txz' "${PLG}" | head -1)
-  EXPECTED=$(grep -o '<SHA256>[0-9a-f]\{64\}</SHA256>' "${PLG}" | head -1 | sed 's/<[^>]*>//g')
+  # 1. Every .plg must point at the same package, with the same checksum.
+  #    The direct and the mirrored variant ship identical bytes, so a mismatch
+  #    means one of the two was rendered from a stale template.
+  TXZ_NAME=""
+  EXPECTED=""
+  for PLG in "${PLGS[@]}"; do
+    [ -f "${PLG}" ] || die "missing ${PLG}"
+    log "checking ${PLG##*/}"
 
-  [ -n "${TXZ_NAME}" ] || die "could not parse the txz filename from the plg"
-  [ -n "${EXPECTED}" ] || die "could not parse the SHA256 from the plg"
+    N=$(grep -o 'unraid-plugin-docker-model-[0-9.]*-[a-z0-9_]*-1\.txz' "${PLG}" | head -1)
+    E=$(grep -o '<SHA256>[0-9a-f]\{64\}</SHA256>' "${PLG}" | head -1 | sed 's/<[^>]*>//g')
+    URL=$(grep -o '<URL>[^<]*\.txz</URL>' "${PLG}" | head -1 | sed 's/<[^>]*>//g')
+
+    [ -n "${N}" ] || die "could not parse the txz filename from ${PLG##*/}"
+    [ -n "${E}" ] || die "could not parse the SHA256 from ${PLG##*/}"
+
+    if [ -z "${TXZ_NAME}" ]; then
+      TXZ_NAME="${N}"
+      EXPECTED="${E}"
+    else
+      if [ "${N}" != "${TXZ_NAME}" ]; then
+        bad "${PLG##*/} references ${N}, expected ${TXZ_NAME}"; FAIL=1
+      fi
+      if [ "${E}" != "${EXPECTED}" ]; then
+        bad "${PLG##*/} expects SHA256 ${E}, expected ${EXPECTED}"; FAIL=1
+      fi
+    fi
+
+    # The mirrored variant has to actually go through the mirror
+    case "${PLG##*/}" in
+      *-proxy.plg)
+        case "${URL}" in
+          https://gh-proxy.org/*) ok "downloads through the gh-proxy.org mirror" ;;
+          *) bad "the mirrored variant does not use the gh-proxy.org mirror: ${URL}"; FAIL=1 ;;
+        esac ;;
+    esac
+  done
 
   TXZ="${DIST}/${TXZ_NAME}"
   [ -f "${TXZ}" ] || die "missing ${TXZ}"

@@ -73,6 +73,31 @@ plugin install /boot/config/plugins/unraid-plugin-docker-model.plg
 Or install it from **Plugins → Install Plugin** in the Unraid web UI using the
 same `.plg` URL.
 
+### Through the gh-proxy.org mirror (mainland China)
+
+If your network cannot reach GitHub, use the mirrored plugin file. The only
+difference is the download URL: `https://gh-proxy.org/` is prepended to the
+GitHub release URL. The plugin package itself is byte for byte the same file,
+with the same SHA256.
+
+```bash
+# on your Unraid host
+cd /boot/config/plugins
+wget -O unraid-plugin-docker-model-proxy.plg \
+  https://gh-proxy.org/https://github.com/zhz8888/unraid-plugin-docker-model/releases/latest/download/unraid-plugin-docker-model-proxy.plg
+plugin install /boot/config/plugins/unraid-plugin-docker-model-proxy.plg
+```
+
+The same prefix works for any GitHub release URL, not just this one:
+
+```
+https://gh-proxy.org/https://github.com/<owner>/<repo>/releases/download/<tag>/<file>
+```
+
+Install **one** of the two files, not both: they install the same package under
+the same plugin name, so having both in `/boot/config/plugins/` only means the
+installer runs twice at boot.
+
 Verify:
 
 ```bash

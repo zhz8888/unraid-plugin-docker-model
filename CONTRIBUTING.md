@@ -45,18 +45,29 @@ Run all three checks and make sure they pass:
 ./scripts/verify-release.sh
 ```
 
+The build produces **two** plugin files from the single template
+`plugin/unraid-plugin-docker-model.plg.in`:
+
+- `unraid-plugin-docker-model.plg` — downloads from the GitHub release assets
+- `unraid-plugin-docker-model-proxy.plg` — downloads the same asset through
+  the `https://gh-proxy.org/` mirror, for networks that cannot reach GitHub
+
+Only the plugin URL, the download URL and the source note differ between them;
+the package, its SHA256 and the install scripts are identical. `lint-plg.sh`
+checks both files, and `verify-release.sh` asserts that they reference the same
+package with the same checksum.
+
 The build is **reproducible**: building the same version twice must yield the
 same txz SHA256, and it must not depend on *where* the working tree lives.
 
-Two things are normalised for this, and both matter:
-
-- **mtimes** — `bsdtar` has no `--mtime`, so the script `touch`es the whole
-  staging tree to a fixed timestamp before packing.
-- **extended attributes** — `bsdtar` writes macOS xattrs as
-  `LIBARCHIVE.xattr.*` pax headers. A tree cloned from git carries
-  `com.apple.provenance`, which would otherwise leak into the archive and make
-  the hash depend on the checkout origin. The script clears them with
-  `xattr -rc` and passes `--no-xattrs` to tar where supported.
+The archive is written by Python's `tarfile` module rather than by shelling out
+to `tar`, because tar implementations disagree even when told to emit the same
+format — GNU tar and bsdtar differ in the `mode` and `uname` header fields, in
+member order (which follows `readdir`) and in how they write macOS extended
+attributes. Using one implementation removes the whole class of problems: the
+script sets every header field explicitly (uid/gid 0, empty uname/gname, fixed
+mtime, 0755 for directories and executables, 0644 otherwise) and sorts the
+member list, so Linux and macOS produce identical bytes by construction.
 
 If your change alters the txz hash for an unchanged upstream version, check
 staging determinism rather than bumping a checksum. Verify with:

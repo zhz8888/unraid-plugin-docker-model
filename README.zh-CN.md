@@ -67,6 +67,29 @@ plugin install /boot/config/plugins/unraid-plugin-docker-model.plg
 
 也可以在 Unraid Web UI 的 **Plugins → Install Plugin** 里填同一个 `.plg` URL。
 
+### 通过 gh-proxy.org 代理安装（中国大陆）
+
+如果你的网络无法直连 GitHub，可以使用**代理版**插件文件。两者唯一的区别是下载
+地址——在 GitHub 链接前拼接 `https://gh-proxy.org/` 即可。插件包本身是同一个文件，
+逐字节一致，SHA256 也相同。
+
+```bash
+# 在 Unraid 主机上执行
+cd /boot/config/plugins
+wget -O unraid-plugin-docker-model-proxy.plg \
+  https://gh-proxy.org/https://github.com/zhz8888/unraid-plugin-docker-model/releases/latest/download/unraid-plugin-docker-model-proxy.plg
+plugin install /boot/config/plugins/unraid-plugin-docker-model-proxy.plg
+```
+
+同样的前缀适用于任意 GitHub Release 链接，不限于本项目：
+
+```
+https://gh-proxy.org/https://github.com/<owner>/<repo>/releases/download/<tag>/<file>
+```
+
+两个文件**只需安装其中一个**：它们安装的是同一个包、插件名也相同，同时放到
+`/boot/config/plugins/` 只会让安装器在每次开机时多跑一遍。
+
 验证：
 
 ```bash
