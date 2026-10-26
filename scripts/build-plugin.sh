@@ -205,7 +205,7 @@ EOF
 log "packing ${TXZ_NAME} ..."
 
 # ---- Reproducible build -------------------------------------------------
-# Two independent sources of nondeterminism have to be removed:
+# Three independent sources of nondeterminism have to be removed:
 #
 #  1. mtimes -- bsdtar has no --mtime (GNU tar does), so normalise with touch.
 #  2. macOS extended attributes -- bsdtar (libarchive) writes them as
@@ -213,8 +213,12 @@ log "packing ${TXZ_NAME} ..."
 #     clone or downloaded via a browser carries com.apple.provenance /
 #     com.apple.quarantine. That makes the txz hash depend on where the tree
 #     came from. Clear them before packing.
+#  3. directory traversal order -- `tar -c .` emits members in readdir order,
+#     which is filesystem dependent. macOS and Linux produced "./usr/..." and
+#     "./install/..." in opposite orders, so the same inputs gave different
+#     archives. Pack an explicitly sorted member list instead.
 #
-# Without both, the "reproducible build" claim in the README does not hold.
+# Without all three, the "reproducible build" claim in the README does not hold.
 REPRO_MTIME="202001010000"
 
 if command -v xattr >/dev/null 2>&1; then
@@ -232,9 +236,26 @@ fi
 # records mtime, and touch must win so the recorded value is fixed.
 find "${STAGE}" -exec touch -t "${REPRO_MTIME}" {} +
 
+# Sort members and use --no-recursion so tar never decides the order itself.
+# LC_ALL=C keeps the collation identical across locales. The list must contain
+# "." first so the archive root entry exists, matching the previous layout.
+MEMBER_LIST="${WORK_DIR}/members.txt"
+(
+  cd "${STAGE}"
+  printf '.\n'
+  find . -mindepth 1 | LC_ALL=C sort
+) > "${MEMBER_LIST}"
+
+# Pin the archive format. bsdtar defaults to pax (which emits extended headers
+# that differ between libarchive versions) and GNU tar defaults to its own
+# variant; ustar is the lowest common denominator and both implementations emit
+# it identically.
+#
 # --owner/--group 0 makes the extracted files root-owned on Unraid.
 # Both BSD tar and GNU tar accept these flags.
-( cd "${STAGE}" && tar ${TAR_XATTR_FLAG} --owner=0 --group=0 --numeric-owner -cJf "${DIST_DIR}/${TXZ_NAME}" . )
+( cd "${STAGE}" && tar ${TAR_XATTR_FLAG} --no-recursion --format=ustar \
+    --owner=0 --group=0 --numeric-owner \
+    --files-from "${MEMBER_LIST}" -cJf "${DIST_DIR}/${TXZ_NAME}" )
 
 TXZ_SHA256="$(sha256_of "${DIST_DIR}/${TXZ_NAME}")"
 TXZ_SIZE=$(wc -c < "${DIST_DIR}/${TXZ_NAME}" | tr -d ' ')
