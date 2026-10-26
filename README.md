@@ -36,18 +36,21 @@ This plugin bridges that gap.
 
 ## What it does
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  docker CLI  (shipped with Unraid, /usr/bin/docker)     │
-│    └── cli-plugins/docker-model   <- installed by this   │
-│           │                          plugin              │
-│           │ docker model install-runner                  │
-│           ▼                                              │
-│  container docker-model-runner  (docker/model-runner)    │
-│    ├── llama.cpp backend (CPU / CUDA / ROCm / Vulkan)    │
-│    ├── volume docker-model-runner-models -> /models      │
-│    └── listening on 127.0.0.1:12434                      │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+  CLI["docker CLI<br/>(shipped with Unraid: /usr/bin/docker)"]
+  PLUGIN["cli-plugins/docker-model<br/>installed by this plugin"]
+  RUNNER["container docker-model-runner<br/>(docker/model-runner)"]
+  BACKEND["llama.cpp backend<br/>CPU / CUDA / ROCm / Vulkan"]
+  VOLUME["volume docker-model-runner-models<br/>to /models"]
+  PORT["listening on 127.0.0.1:12434"]
+
+  CLI --> PLUGIN
+  PLUGIN -->|"docker model install-runner"| RUNNER
+  RUNNER --> BACKEND
+  RUNNER --> VOLUME
+  RUNNER --> PORT
 ```
 
 The plugin installs the CLI binary into `/usr/libexec/docker/cli-plugins/` and
@@ -133,17 +136,25 @@ this by building twice and comparing hashes.
 This project redistributes the `docker-model` binary **unmodified** from Docker's
 official apt artifact.
 
-```
-download.docker.com Packages index
-        │  (SHA256 / Size / Filename)
-        ▼
-   curl the deb  ──►  byte-for-byte SHA256 verification
-        │
-        ▼
-   pure-Python ar parse  ──►  data.tar.xz  ──►  usr/libexec/docker/cli-plugins/docker-model
-        │
-        ▼
-   Slackware txz  ──►  .plg with the txz SHA256 baked in
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+  INDEX["download.docker.com Packages index<br/>SHA256 / Size / Filename"]
+  DEB["curl the deb"]
+  VERIFY["byte-for-byte SHA256 verification"]
+  PARSE["pure-Python ar parse"]
+  DATA["data.tar.xz"]
+  BINARY["usr/libexec/docker/cli-plugins/docker-model"]
+  TXZ["Slackware txz"]
+  PLG[".plg with the txz SHA256 baked in"]
+
+  INDEX --> DEB
+  DEB --> VERIFY
+  VERIFY --> PARSE
+  PARSE --> DATA
+  DATA --> BINARY
+  BINARY --> TXZ
+  TXZ --> PLG
 ```
 
 Why the apt artifact rather than a source build? See

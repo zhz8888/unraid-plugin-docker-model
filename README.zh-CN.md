@@ -32,18 +32,21 @@ Unraid 的 docker 包（`docker-29.x-x86_64-1_LT`，Limetech 重打包为 Slackw
 
 ## 它做了什么
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  docker CLI  (Unraid 自带 /usr/bin/docker)              │
-│    └── cli-plugins/docker-model   ← 本插件安装          │
-│           │                                             │
-│           │ docker model install-runner                 │
-│           ▼                                             │
-│  容器 docker-model-runner  (docker/model-runner)        │
-│    ├── llama.cpp 后端（CPU / CUDA / ROCm / Vulkan）     │
-│    ├── 卷 docker-model-runner-models → /models          │
-│    └── 监听 127.0.0.1:12434                             │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+  CLI["docker CLI<br/>(Unraid 自带：/usr/bin/docker)"]
+  PLUGIN["cli-plugins/docker-model<br/>本插件安装"]
+  RUNNER["容器 docker-model-runner<br/>(docker/model-runner)"]
+  BACKEND["llama.cpp 后端<br/>CPU / CUDA / ROCm / Vulkan"]
+  VOLUME["卷 docker-model-runner-models<br/>挂载到 /models"]
+  PORT["监听 127.0.0.1:12434"]
+
+  CLI --> PLUGIN
+  PLUGIN -->|"docker model install-runner"| RUNNER
+  RUNNER --> BACKEND
+  RUNNER --> VOLUME
+  RUNNER --> PORT
 ```
 
 插件把 CLI 二进制装进 `/usr/libexec/docker/cli-plugins/`，并在**每次开机时重新部署**
@@ -125,17 +128,25 @@ CI 会连续构建两次并比对 hash 来强制保证这一点。
 
 本项目**原样**分发 Docker 官方 apt 制品中的 `docker-model` 二进制。
 
-```
-download.docker.com Packages 索引
-        │  (SHA256 / Size / Filename)
-        ▼
-   curl 下载 deb  ──►  逐字节 SHA256 校验
-        │
-        ▼
-   纯 Python 解析 ar  ──►  data.tar.xz  ──►  usr/libexec/docker/cli-plugins/docker-model
-        │
-        ▼
-   Slackware txz  ──►  .plg（写入 txz 的 SHA256）
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+  INDEX["download.docker.com Packages 索引<br/>SHA256 / Size / Filename"]
+  DEB["curl 下载 deb"]
+  VERIFY["逐字节 SHA256 校验"]
+  PARSE["纯 Python 解析 ar"]
+  DATA["data.tar.xz"]
+  BINARY["usr/libexec/docker/cli-plugins/docker-model"]
+  TXZ["Slackware txz"]
+  PLG[".plg（写入 txz 的 SHA256）"]
+
+  INDEX --> DEB
+  DEB --> VERIFY
+  VERIFY --> PARSE
+  PARSE --> DATA
+  DATA --> BINARY
+  BINARY --> TXZ
+  TXZ --> PLG
 ```
 
 为什么选 apt 制品而不是源码编译？完整评估见

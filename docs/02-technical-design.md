@@ -16,18 +16,21 @@
 
 ## 二、为什么是「CLI 插件 + 容器」两层
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  docker CLI  (Unraid 自带 /usr/bin/docker)              │
-│    └── cli-plugins/docker-model   ← 本插件安装          │
-│           │                                             │
-│           │ docker model install-runner                 │
-│           ▼                                             │
-│  容器 docker-model-runner  (docker/model-runner)        │
-│    ├── llama.cpp 后端（CPU / CUDA / ROCm / Vulkan）     │
-│    ├── 卷 docker-model-runner-models → /models          │
-│    └── 监听 127.0.0.1:12434 (+ 172.17.0.1:12434)        │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+  CLI["docker CLI<br/>(Unraid 自带：/usr/bin/docker)"]
+  PLUGIN["cli-plugins/docker-model<br/>本插件安装"]
+  RUNNER["容器 docker-model-runner<br/>(docker/model-runner)"]
+  BACKEND["llama.cpp 后端<br/>CPU / CUDA / ROCm / Vulkan"]
+  VOLUME["卷 docker-model-runner-models<br/>挂载到 /models"]
+  PORT["监听 127.0.0.1:12434<br/>(+ 172.17.0.1:12434)"]
+
+  CLI --> PLUGIN
+  PLUGIN -->|"docker model install-runner"| RUNNER
+  RUNNER --> BACKEND
+  RUNNER --> VOLUME
+  RUNNER --> PORT
 ```
 
 **关键点：CLI 插件和 runner 容器是两个独立的东西。**
@@ -43,18 +46,19 @@
 
 ## 三、安装流程（`.plg` 的 `<FILE Run>`）
 
-```
-1. 前置检查
-   - /usr/libexec/docker/cli-plugins 是否存在？（仅 Unraid 7.0+）
-   - txz 是否已由插件安装器下载完成？
-2. upgradepkg --install-new <txz>
-   -> 把 docker-model 安装到 /usr/libexec/docker/cli-plugins/docker-model
-3. 清理残留在 vfat 上的旧副本
-   /root/.docker -> /boot/config/plugins/dockerMan（vfat，不支持 chmod）
-   残留的 ~/.docker/cli-plugins/docker-model 会遮蔽系统目录
-   并报 "permission denied"，必须删除
-4. 用 docker model version 验证
-5. 打印后续步骤（install-runner / gh-proxy 用法）
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+  PREFLIGHT["1. 前置检查<br/>/usr/libexec/docker/cli-plugins 是否存在？（仅 Unraid 7.0+）<br/>txz 是否已由插件安装器下载完成？"]
+  INSTALL["2. upgradepkg --install-new &lt;txz&gt;<br/>把 docker-model 安装到 /usr/libexec/docker/cli-plugins/docker-model"]
+  CLEAN["3. 清理残留在 vfat 上的旧副本<br/>/root/.docker → /boot/config/plugins/dockerMan（vfat，不支持 chmod）<br/>残留的 ~/.docker/cli-plugins/docker-model 会遮蔽系统目录并报 permission denied，必须删除"]
+  VERIFY["4. 用 docker model version 验证"]
+  NEXT["5. 打印后续步骤（install-runner / gh-proxy 用法）"]
+
+  PREFLIGHT --> INSTALL
+  INSTALL --> CLEAN
+  CLEAN --> VERIFY
+  VERIFY --> NEXT
 ```
 
 **幂等性**：`upgradepkg --install-new` 对已装同版本是 no-op，`rm -f` 对不存在文件是 no-op，
@@ -71,23 +75,21 @@
 
 ## 五、构建流程（`scripts/build-plugin.sh`）
 
-```
-Packages index ──► 读取 SHA256/Size/Filename
-                        │
-                        ▼
-              curl 下载 deb ──► 逐字节 SHA256 校验
-                        │
-                        ▼
-          纯 Python 解析 ar ──► data.tar.xz ──► 解出 docker-model
-                        │
-                        ▼
-      stage/usr/libexec/docker/cli-plugins/docker-model + install/slack-desc
-                        │
-                        ▼
-             tar -cJf dist/unraid-plugin-docker-model-<ver>-x86_64-1.txz
-                        │
-                        ▼
-      生成 dist/unraid-plugin-docker-model.plg（写入 txz 的 SHA256）
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+  INDEX["Packages index"]
+  DEB["curl 下载 deb"]
+  PARSE["纯 Python 解析 ar"]
+  STAGE["stage/usr/libexec/docker/cli-plugins/docker-model<br/>+ install/slack-desc"]
+  TXZ["tar -cJf dist/unraid-plugin-docker-model-&lt;ver&gt;-x86_64-1.txz"]
+  PLG["生成 dist/unraid-plugin-docker-model.plg<br/>（写入 txz 的 SHA256）"]
+
+  INDEX -->|"读取 SHA256/Size/Filename"| DEB
+  DEB -->|"逐字节 SHA256 校验"| PARSE
+  PARSE -->|"data.tar.xz → 解出 docker-model"| STAGE
+  STAGE --> TXZ
+  TXZ --> PLG
 ```
 
 ### 为什么必须自己解析 ar
