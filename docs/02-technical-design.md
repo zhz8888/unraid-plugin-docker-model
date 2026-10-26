@@ -18,15 +18,15 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  docker CLI  (shipped with Unraid, /usr/bin/docker)     │
-│    └── cli-plugins/docker-model   <- installed by this   │
-│           │                          plugin              │
-│           │ docker model install-runner                  │
-│           ▼                                              │
-│  container docker-model-runner  (docker/model-runner)    │
-│    ├── llama.cpp backend (CPU / CUDA / ROCm / Vulkan)    │
-│    ├── volume docker-model-runner-models -> /models      │
-│    └── listening on 127.0.0.1:12434 (+ 172.17.0.1:12434) │
+│  docker CLI  (Unraid 自带 /usr/bin/docker)              │
+│    └── cli-plugins/docker-model   ← 本插件安装          │
+│           │                                             │
+│           │ docker model install-runner                 │
+│           ▼                                             │
+│  容器 docker-model-runner  (docker/model-runner)        │
+│    ├── llama.cpp 后端（CPU / CUDA / ROCm / Vulkan）     │
+│    ├── 卷 docker-model-runner-models → /models          │
+│    └── 监听 127.0.0.1:12434 (+ 172.17.0.1:12434)        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -44,17 +44,17 @@
 ## 三、安装流程（`.plg` 的 `<FILE Run>`）
 
 ```
-1. Preflight
-   - does /usr/libexec/docker/cli-plugins exist? (Unraid 7.0+ only)
-   - has the txz already been downloaded by the plugin installer?
+1. 前置检查
+   - /usr/libexec/docker/cli-plugins 是否存在？（仅 Unraid 7.0+）
+   - txz 是否已由插件安装器下载完成？
 2. upgradepkg --install-new <txz>
-   -> installs docker-model into /usr/libexec/docker/cli-plugins/docker-model
-3. Remove stale copies left on vfat
-   /root/.docker -> /boot/config/plugins/dockerMan (vfat, no chmod support)
-   A leftover ~/.docker/cli-plugins/docker-model shadows the system directory
-   and fails with "permission denied", so it must be deleted
-4. Verify with docker model version
-5. Print the next steps (install-runner / gh-proxy usage)
+   -> 把 docker-model 安装到 /usr/libexec/docker/cli-plugins/docker-model
+3. 清理残留在 vfat 上的旧副本
+   /root/.docker -> /boot/config/plugins/dockerMan（vfat，不支持 chmod）
+   残留的 ~/.docker/cli-plugins/docker-model 会遮蔽系统目录
+   并报 "permission denied"，必须删除
+4. 用 docker model version 验证
+5. 打印后续步骤（install-runner / gh-proxy 用法）
 ```
 
 **幂等性**：`upgradepkg --install-new` 对已装同版本是 no-op，`rm -f` 对不存在文件是 no-op，
@@ -63,22 +63,22 @@
 ## 四、卸载流程
 
 ```
-1. If the runner is still running, tell the user to run uninstall-runner
-   manually (never auto-remove, to avoid deleting models by accident)
+1. 如果 runner 仍在运行，提示用户手动执行 uninstall-runner
+   （绝不自动删除，避免误删模型）
 2. removepkg unraid-plugin-docker-model
-3. Clean up leftovers (/usr/libexec/... , ~/.docker/... , the cached txz on flash)
+3. 清理残留（/usr/libexec/... 、~/.docker/... 、flash 上缓存的 txz）
 ```
 
 ## 五、构建流程（`scripts/build-plugin.sh`）
 
 ```
-Packages index ──► read SHA256/Size/Filename
+Packages index ──► 读取 SHA256/Size/Filename
                         │
                         ▼
-              curl the deb ──► byte-for-byte SHA256 check
+              curl 下载 deb ──► 逐字节 SHA256 校验
                         │
                         ▼
-          pure Python ar parse ──► data.tar.xz ──► extract docker-model
+          纯 Python 解析 ar ──► data.tar.xz ──► 解出 docker-model
                         │
                         ▼
       stage/usr/libexec/docker/cli-plugins/docker-model + install/slack-desc
@@ -87,7 +87,7 @@ Packages index ──► read SHA256/Size/Filename
              tar -cJf dist/unraid-plugin-docker-model-<ver>-x86_64-1.txz
                         │
                         ▼
-      render dist/unraid-plugin-docker-model.plg (with the txz SHA256)
+      生成 dist/unraid-plugin-docker-model.plg（写入 txz 的 SHA256）
 ```
 
 ### 为什么必须自己解析 ar
@@ -124,10 +124,10 @@ failed to do request: Head "https://registry-1.docker.io/v2/ai/smollm2/manifests
 绕过方式：**把代理前缀写进镜像名本身**。
 
 ```bash
-# models
+# 模型
 docker model pull gh-proxy.org/docker/ai/smollm2:360M-Q4_K_M
 
-# runner image (pull and tag it manually before install-runner)
+# runner 镜像（install-runner 之前需要手动拉取并打标签）
 docker pull gh-proxy.org/docker/docker/model-runner:latest
 docker tag  gh-proxy.org/docker/docker/model-runner:latest docker/model-runner:latest
 docker model install-runner --gpu none

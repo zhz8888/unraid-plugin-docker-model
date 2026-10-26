@@ -20,7 +20,7 @@ PRETTY_NAME="Unraid OS 7.3 x86_64"
 $ docker info --format '{{json .ClientInfo.Plugins}}'
 [{"Name":"buildx","Path":"/usr/libexec/docker/cli-plugins/docker-buildx"},
  {"Name":"compose","Path":"/usr/lib/docker/cli-plugins/docker-compose"}]
-   <- no model plugin
+   <- 无 model plugin
 ```
 
 ## 二、Unraid 官方版本全量核对
@@ -67,7 +67,7 @@ Size: 7416728
 SHA256: 0d3a9ff3d9df36e8000680a178e74b64582a6f77b97dbd9d6ad31f2d0f197ea9
 
 $ shasum -a 256 docker-model-plugin_1.2.9-1~ubuntu.24.04~noble_amd64.deb
-0d3a9ff3d9df36e8000680a178e74b64582a6f77b97dbd9d6ad31f2d0f197ea9   <- matches
+0d3a9ff3d9df36e8000680a178e74b64582a6f77b97dbd9d6ad31f2d0f197ea9   <- 一致
 ```
 
 三架构均可用：
@@ -107,9 +107,9 @@ $ go version -m docker-model
 $ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
     -ldflags="-s -w -X .../desktop.Version=v1.2.9" -o docker-model ./cmd/cli
 
-first build (including 860MB of dependency downloads): 1m48s
-warm rebuild: 1.0s
-artifact size: 28,364,960 B  (deb artifact 28,180,642 B, +0.65%)
+首次构建（含 860MB 依赖下载）：1m48s
+增量重建：1.0s
+产物体积：28,364,960 B（deb 产物 28,180,642 B，+0.65%）
 ```
 
 ### 可复现性
@@ -118,7 +118,7 @@ artifact size: 28,364,960 B  (deb artifact 28,180,642 B, +0.65%)
 $ shasum -a 256 built-linux-amd64 built2 built3
 a4a42032afed1e51de7546722e1769d2f5013df3  built-linux-amd64
 a4a42032afed1e51de7546722e1769d2f5013df3  built2
-a4a42032afed1e51de7546722e1769d2f5013df3  built3     <- identical across all three builds
+a4a42032afed1e51de7546722e1769d2f5013df3  built3     <- 三次构建完全一致
 ```
 
 ### 功能面一致
@@ -126,8 +126,8 @@ a4a42032afed1e51de7546722e1769d2f5013df3  built3     <- identical across all thr
 ```
 $ diff <(strings built | grep -o "docker model [a-z-]*" | sort -u) \
        <(strings deb  | grep -o "docker model [a-z-]*" | sort -u)
-(no output)
-all 24 commands identical
+（无输出）
+24 条命令完全一致
 ```
 
 ### ⚠️ 但源码编译有版本号陷阱
@@ -137,7 +137,7 @@ $ git describe --tags --always --dirty --match 'v*'
 fatal: not a git repository
 
 $ strings built_noldflags | grep -E "^(devel|v1\.2\.9)$"
-(devel)        <- the version string degrades to "dev"
+(devel)        <- 版本号退化为 "dev"
 ```
 
 上游 Makefile 依赖 `git describe` 注入版本；从 codeload tarball 构建时无 `.git`，
@@ -168,9 +168,9 @@ build-gateway:
 hash 不一致——
 
 ```
-# before the fix
-clone build:      6c59f68954e017cac6a9bc0da2536f0c99288bd789fdf2e81ce917728f71080a
-original build:   bfac03eefe7e2f2538f2aee20232713d609592247eeefd2eafed95a568b63201
+# 修复前
+克隆目录构建：    6c59f68954e017cac6a9bc0da2536f0c99288bd789fdf2e81ce917728f71080a
+原目录构建：      bfac03eefe7e2f2538f2aee20232713d609592247eeefd2eafed95a568b63201
 ```
 
 根因是 bsdtar（libarchive）把 macOS 的 `com.apple.provenance` 扩展属性写成

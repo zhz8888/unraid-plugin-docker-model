@@ -31,7 +31,7 @@
 手动发布（不走 CI 时）：
 
 ```bash
-# release command (example)
+# 发布命令（示例）
 make build lint verify
 gh release create 1.2.9 dist/unraid-plugin-docker-model-1.2.9-x86_64-1.txz \
   --title "unraid-plugin-docker-model 1.2.9" \
@@ -48,21 +48,21 @@ gh release create 1.2.9 dist/unraid-plugin-docker-model-1.2.9-x86_64-1.txz \
 需要用 `.plg` 走一遍完整流程：
 
 ```bash
-# 1. remove the manually installed copy (no removepkg record existed, delete the file)
+# 1. 删除手工安装的副本（此前没有 removepkg 记录，直接删除文件）
 ssh root@<unraid-host> "rm -f /usr/libexec/docker/cli-plugins/docker-model"
 
-# 2. upload the plg
+# 2. 上传 plg 文件
 scp dist/unraid-plugin-docker-model.plg root@<unraid-host>:/boot/config/plugins/
 
-# 3. install
+# 3. 安装
 ssh root@<unraid-host> "plugin install /boot/config/plugins/unraid-plugin-docker-model.plg"
 
-# 4. verify
+# 4. 验证
 ssh root@<unraid-host> "docker model version; docker model status"
 
-# 5. reboot to verify persistence
+# 5. 重启以验证持久化
 ssh root@<unraid-host> "reboot"
-# once it is back up
+# 等待主机重新上线
 ssh root@<unraid-host> "docker model version"
 ```
 

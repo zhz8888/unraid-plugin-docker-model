@@ -35,14 +35,14 @@ Unraid 的 docker 包（`docker-29.x-x86_64-1_LT`，Limetech 重打包为 Slackw
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  docker CLI  (Unraid 自带 /usr/bin/docker)              │
-│    └── cli-plugins/docker-model   ← 本插件安装           │
-│           │                                              │
-│           │ docker model install-runner                  │
-│           ▼                                              │
-│  容器 docker-model-runner  (docker/model-runner)         │
-│    ├── llama.cpp 后端（CPU / CUDA / ROCm / Vulkan）       │
-│    ├── 卷 docker-model-runner-models → /models           │
-│    └── 监听 127.0.0.1:12434                              │
+│    └── cli-plugins/docker-model   ← 本插件安装          │
+│           │                                             │
+│           │ docker model install-runner                 │
+│           ▼                                             │
+│  容器 docker-model-runner  (docker/model-runner)        │
+│    ├── llama.cpp 后端（CPU / CUDA / ROCm / Vulkan）     │
+│    ├── 卷 docker-model-runner-models → /models          │
+│    └── 监听 127.0.0.1:12434                             │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -55,7 +55,7 @@ Unraid 的 docker 包（`docker-29.x-x86_64-1_LT`，Limetech 重打包为 Slackw
 ### 从 Release 安装
 
 ```bash
-# on the Unraid host
+# 在 Unraid 主机上执行
 cd /boot/config/plugins
 wget -O unraid-plugin-docker-model.plg \
   https://github.com/zhz8888/unraid-plugin-docker-model/releases/latest/download/unraid-plugin-docker-model.plg
@@ -77,10 +77,10 @@ docker model version
 ### 再部署 runner
 
 ```bash
-# CPU only
+# 仅使用 CPU
 docker model install-runner --gpu none
 
-# with an NVIDIA / AMD GPU
+# 使用 NVIDIA / AMD GPU
 docker model install-runner --gpu auto
 ```
 
@@ -101,13 +101,13 @@ docker model run ai/smollm2:360M-Q4_K_M "Hello"
 git clone https://github.com/zhz8888/unraid-plugin-docker-model.git
 cd unraid-plugin-docker-model
 
-make build     # download -> verify SHA256 -> unpack -> txz -> plg
-make lint      # static checks on the generated .plg
-make verify    # verify hashes and internal layout
+make build     # 下载 -> 校验 SHA256 -> 解包 -> 打包 txz -> 生成 plg
+make lint      # 对生成的 .plg 做静态检查
+make verify    # 校验哈希与包内结构
 
 ls dist/
-# unraid-plugin-docker-model-1.2.9-x86_64-1.txz   <- Slackware package
-# unraid-plugin-docker-model.plg                  <- Unraid plugin definition
+# unraid-plugin-docker-model-1.2.9-x86_64-1.txz   <- Slackware 安装包
+# unraid-plugin-docker-model.plg                  <- Unraid 插件定义文件
 ```
 
 覆盖版本或架构：
@@ -193,30 +193,30 @@ Slackware 基础的 Unraid 上可直接运行。
 
 ```
 .
-├── README.md                              # English README
-├── README.zh-CN.md                        # this file
+├── README.md                              # 英文版 README
+├── README.zh-CN.md                        # 本文件
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── SECURITY.md
-├── LICENSE                                # MIT (this project)
-├── NOTICE                                 # Apache-2.0 attribution for the bundled binary
-├── Makefile                               # build / lint / verify shortcuts
+├── LICENSE                                # MIT（本项目自身）
+├── NOTICE                                 # 捆绑二进制的 Apache-2.0 归属声明
+├── Makefile                               # build / lint / verify 快捷命令
 ├── docs/
-│   ├── README.md                          # documentation index
-│   ├── 01-design-decisions.md             # apt artifact vs source build
-│   ├── 02-technical-design.md             # architecture, install/uninstall flow
-│   ├── 03-verification-log.md             # measured evidence
-│   └── 04-roadmap.md                      # milestones and TODOs
+│   ├── README.md                          # 文档索引
+│   ├── 01-design-decisions.md             # apt 制品与源码编译选型对比
+│   ├── 02-technical-design.md             # 架构与安装/卸载流程
+│   ├── 03-verification-log.md             # 实测证据
+│   └── 04-roadmap.md                      # 里程碑与待办
 ├── plugin/
-│   └── unraid-plugin-docker-model.plg.in  # Unraid plugin template
+│   └── unraid-plugin-docker-model.plg.in  # Unraid 插件模板
 ├── scripts/
-│   ├── build-plugin.sh                    # build: deb -> verify -> unpack -> txz -> plg
-│   ├── fetch-plugin.sh                    # download + verify + unpack only (audit)
-│   ├── lint-plg.sh                        # static checks on the .plg
-│   └── verify-release.sh                  # verify hashes and layout
+│   ├── build-plugin.sh                    # 构建：deb -> 校验 -> 解包 -> txz -> plg
+│   ├── fetch-plugin.sh                    # 仅下载 + 校验 + 解包（审计用）
+│   ├── lint-plg.sh                        # 对 .plg 做静态检查
+│   └── verify-release.sh                  # 校验哈希与包内结构
 └── .github/
-    ├── workflows/build.yml                # CI: build, lint, verify, reproducibility
-    ├── workflows/upstream-check.yml       # daily upstream version check
+    ├── workflows/build.yml                # CI：构建、lint、verify、可复现性校验
+    ├── workflows/upstream-check.yml       # 每日检查上游新版本
     └── ISSUE_TEMPLATE/
 ```
 

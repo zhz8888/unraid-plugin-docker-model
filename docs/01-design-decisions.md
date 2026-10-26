@@ -76,13 +76,13 @@ build-gateway:
 ### 主路径：apt 解包（`scripts/build-plugin.sh`）
 
 ```
-1. Read the SHA256 / Size / Filename of the target version from the
-   download.docker.com Packages index
-2. Download the deb, verify SHA256 byte for byte
-3. Parse the ar container with pure Python (Unraid has no `ar`/`dpkg-deb`, verified)
-4. Unpack data.tar.xz, extract usr/libexec/docker/cli-plugins/docker-model
-5. Pack a Slackware txz (with install/slack-desc, required by upgradepkg)
-6. Render the .plg (SHA256, boot deploy script, uninstall script)
+1. 读取 download.docker.com Packages 索引中目标版本的
+   SHA256 / Size / Filename
+2. 下载 deb，逐字节校验 SHA256
+3. 用纯 Python 解析 ar 容器（Unraid 没有 `ar`/`dpkg-deb`，已验证）
+4. 解开 data.tar.xz，取出 usr/libexec/docker/cli-plugins/docker-model
+5. 打包为 Slackware txz（含 install/slack-desc，upgradepkg 要求）
+6. 渲染 .plg（SHA256、开机部署脚本、卸载脚本）
 ```
 
 **为什么不用 `dpkg-deb`/`ar`：** 测试机上 `which ar dpkg dpkg-deb` 全部 not found，
@@ -123,7 +123,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 ## 六、验证证据摘要
 
 ```
-$ file docker-model            # extracted from the apt artifact
+$ file docker-model            # 从 apt 制品中解包得到
 ELF 64-bit LSB executable, x86-64, statically linked, Go BuildID=..., stripped
 
 $ go version -m docker-model
@@ -134,8 +134,8 @@ $ go version -m docker-model
 
 $ shasum -a 256 docker-model-plugin_1.2.9-..._amd64.deb
 0d3a9ff3d9df36e8000680a178e74b64582a6f77b97dbd9d6ad31f2d0f197ea9
-# matches the SHA256 in the apt Packages index exactly
+# 与 apt Packages 索引中的 SHA256 完全一致
 
 $ strings docker-model | grep -o "docker model [a-z-]*" | sort -u | wc -l
-24        # identical to the source-built binary after diff
+24        # 经 diff 比对，与源码编译产物完全一致
 ```
