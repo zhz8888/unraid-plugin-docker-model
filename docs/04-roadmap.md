@@ -197,8 +197,8 @@ readdir），改用 Python `tarfile` 统一写出，见提交 `b39e673`、`e6337
 
 流程：
 
-1. `.github/workflows/upstream-check.yml` 每天 03:17 UTC 检查 apt 索引，发现新版本会自动开 issue
-   （工作流已配置；仓库 2026-10-26 创建，首次定时触发为 2026-10-27 03:17 UTC，
+1. `.github/workflows/upstream-check.yml` 每天 12:00 UTC 检查 apt 索引，发现新版本会自动开 issue
+   （工作流已配置；仓库 2026-10-26 创建，首次定时触发为 2026-10-27 12:00 UTC，
    目前尚无运行记录，需确认首个 issue 能正常开出）
 2. 按 issue 提示跑 `DMR_VERSION=x.y.z ./scripts/build-plugin.sh`
 3. `make lint && make verify`，并在测试机上 smoke test（`docker model version` + `docker model status`）
