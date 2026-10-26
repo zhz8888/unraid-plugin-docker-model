@@ -45,14 +45,17 @@
 
 ## P2 · 发布仓库
 
-**已完成**（2026-10-26 由 CI 发布，2026-10-27 复核）：
+**已完成**（2026-10-26 首次发布；2026-10-27 重新发版，补上代理版插件文件）：
 
-1. ✅ 打 tag 并推送：`refs/tags/1.2.9` → `e6337f0`，已推送到 origin
+1. ✅ 打 tag 并推送：`refs/tags/1.2.9` 已前移到本次发版提交并推送到 origin
 2. ✅ CI（`.github/workflows/build.yml`）自动构建并附加产物，Release 由 `github-actions[bot]` 创建
-3. ✅ Release 1.2.9 同时含 `unraid-plugin-docker-model-1.2.9-x86_64-1.txz`
-   和 `unraid-plugin-docker-model.plg`
+3. ✅ Release 1.2.9 含三个资产：
+   - `unraid-plugin-docker-model-1.2.9-x86_64-1.txz`
+   - `unraid-plugin-docker-model.plg`（直连版）
+   - `unraid-plugin-docker-model-proxy.plg`（经 `https://gh-proxy.org/` 代理）
 4. ✅ `pluginURL`（`releases/latest/download/unraid-plugin-docker-model.plg`）返回 HTTP 200
-5. ✅ 线上 SHA256 与本地一致：
+5. ✅ 代理版下载地址（`releases/latest/download/unraid-plugin-docker-model-proxy.plg`）返回 HTTP 200
+6. ✅ 线上 SHA256 与本地一致：
 
 ```bash
 $ ./scripts/verify-release.sh \
@@ -60,6 +63,11 @@ $ ./scripts/verify-release.sh \
 [verify] expected SHA256: 0d545fb9e7e2f098b79d249757e5b839ebddaa981b493ee3f6b84c115d43e905
   ok remote txz SHA256 matches
 ```
+
+> 发版版本号跟随上游 `docker-model-plugin`，因此上游未发新版本前无法用新版本号发版；
+> 补齐代理版时只能重新发布同一个 `1.2.9`，tag 前移到包含新插件文件的提交。
+> 插件的 `version` 属性也随之保持 `1.2.9`，所以**已安装的用户不会收到更新提示**——
+> 代理版面向的是新装机的中国大陆用户。
 
 > 生成的 `.plg` 是构建产物（`dist/` 被 gitignore），因此通过 Release 资产分发，
 > 不提交进仓库。`pluginURL` 与下载链接都使用 GitHub 的
