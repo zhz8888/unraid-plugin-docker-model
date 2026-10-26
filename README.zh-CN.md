@@ -1,5 +1,7 @@
 # unraid-plugin-docker-model
 
+[English](README.md) | **简体中文**
+
 [![build](https://github.com/zhz8888/unraid-plugin-docker-model/actions/workflows/build.yml/badge.svg)](https://github.com/zhz8888/unraid-plugin-docker-model/actions/workflows/build.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -7,8 +9,6 @@
 
 Unraid 官方不带 `docker model` CLI 插件。本项目把它打包成原生 Unraid 插件（`.plg`），
 一条 `plugin install` 即可在 Unraid 上本地运行和提供 AI 模型。
-
-> [English README](README.md)
 
 ---
 

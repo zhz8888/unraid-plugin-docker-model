@@ -1,5 +1,7 @@
 # unraid-plugin-docker-model
 
+**English** | [简体中文](README.zh-CN.md)
+
 [![build](https://github.com/zhz8888/unraid-plugin-docker-model/actions/workflows/build.yml/badge.svg)](https://github.com/zhz8888/unraid-plugin-docker-model/actions/workflows/build.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![unraid](https://img.shields.io/badge/unraid-7.0%2B-orange.svg)](https://unraid.net)
@@ -9,8 +11,6 @@
 Unraid does not ship the `docker model` CLI plugin. This project packages it as a
 native Unraid plugin (`.plg`) so you can pull and serve AI models locally on your
 Unraid server with a single `plugin install`.
-
-> [中文说明](README.zh-CN.md)
 
 ---
 
