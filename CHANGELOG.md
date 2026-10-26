@@ -1,0 +1,36 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+Version numbers track the upstream `docker-model-plugin` release that is bundled.
+
+## [Unreleased]
+
+### Added
+
+- GitHub Actions workflows for build verification and upstream version checks
+- Issue and pull request templates
+
+## [1.2.9] - 2026-10-26
+
+### Added
+
+- Initial release
+- Bundles the `docker model` CLI plugin from Docker's official apt artifact
+  `docker-model-plugin_1.2.9-1~ubuntu.24.04~noble_amd64`
+- Unraid `.plg` definition that installs the plugin into
+  `/usr/libexec/docker/cli-plugins/` via `upgradepkg` and re-deploys it on boot
+- Build pipeline that downloads the deb, verifies its SHA256 against the
+  download.docker.com `Packages` index, unpacks the ar container with pure
+  Python (no `ar`/`dpkg-deb` needed), and packs a reproducible Slackware txz
+- `scripts/fetch-plugin.sh` for audit/debug inspection of any upstream version
+- `scripts/lint-plg.sh` for static validation of the generated `.plg`
+- `scripts/verify-release.sh` for verifying artifact hashes and layout
+- Documentation covering the design decision, technical design, verification
+  log and roadmap
+
+[Unreleased]: https://github.com/zhz8888/unraid-plugin-docker-model/compare/1.2.9...HEAD
+[1.2.9]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/1.2.9

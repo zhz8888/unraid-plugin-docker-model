@@ -1,0 +1,28 @@
+unraid-plugin-docker-model
+Copyright (c) 2026 zhz8888
+
+This product bundles a binary distributed by Docker, Inc.:
+
+  docker-model  (the `docker model` CLI plugin)
+  Source:       https://github.com/docker/model-runner
+  License:      Apache License 2.0
+  Redistributed as: usr/libexec/docker/cli-plugins/docker-model
+                    inside unraid-plugin-docker-model-<version>-x86_64-1.txz
+
+The binary is redistributed unmodified. It is extracted byte for byte from the
+official Docker apt artifact `docker-model-plugin`, whose SHA256 is verified
+against the download.docker.com `Packages` index at build time. No modifications
+are made to the upstream binary.
+
+The Docker Model Runner container image (`docker/model-runner`) is NOT
+distributed by this project. It is pulled by the user at runtime via
+`docker model install-runner` and remains subject to its own license.
+
+Apache License 2.0:
+  https://www.apache.org/licenses/LICENSE-2.0
+
+A copy of the upstream license is available at:
+  https://github.com/docker/model-runner/blob/main/LICENSE
+
+This project's own scripts and documentation are licensed under the MIT
+License; see LICENSE.

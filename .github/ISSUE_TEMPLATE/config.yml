@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Upstream bug (docker model itself)
+    url: https://github.com/docker/model-runner/issues
+    about: Problems with pulling models, running inference or the runner container belong upstream.
+  - name: Unraid forum thread
+    url: https://forums.unraid.net/
+    about: General Unraid questions that are not specific to this plugin.

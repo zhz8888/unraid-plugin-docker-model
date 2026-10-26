@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest an improvement to the plugin or its packaging
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Feature requests about `docker model` behaviour itself belong upstream at
+        https://github.com/docker/model-runner/issues. This form is for the
+        Unraid packaging layer (install scripts, build pipeline, docs).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve
+      description: Describe the use case rather than jumping to a solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false

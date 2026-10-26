@@ -1,0 +1,81 @@
+name: check upstream
+
+on:
+  schedule:
+    # Every day at 03:17 UTC
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: Check for a newer docker-model-plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Query the apt Packages index
+        id: latest
+        run: |
+          set -euo pipefail
+          URL="https://download.docker.com/linux/ubuntu/dists/noble/stable/binary-amd64/Packages"
+          curl -fsSL --retry 3 --max-time 120 "$URL" -o /tmp/Packages
+
+          LATEST=$(awk '
+            /^Package: docker-model-plugin$/ { inblk=1; next }
+            inblk && /^Version: / { print $2; exit }
+          ' /tmp/Packages | sed 's/-[0-9]*~ubuntu.*//')
+
+          if [ -z "$LATEST" ]; then
+            echo "::error::could not determine the latest upstream version"
+            exit 1
+          fi
+
+          # Version currently pinned by the build script
+          CURRENT=$(grep -oE 'DMR_VERSION:-[0-9.]+' scripts/build-plugin.sh | head -1 | sed 's/DMR_VERSION:-//')
+
+          echo "latest=$LATEST"   >> "$GITHUB_OUTPUT"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "upstream latest: $LATEST (pinned: $CURRENT)"
+
+      - name: Open an issue when a newer version exists
+        if: steps.latest.outputs.latest != steps.latest.outputs.current
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const latest = '${{ steps.latest.outputs.latest }}';
+            const current = '${{ steps.latest.outputs.current }}';
+            const title = `chore: bump docker-model-plugin to ${latest}`;
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'dependencies',
+            });
+            if (issues.some(i => i.title === title)) {
+              core.info('an issue for this version already exists');
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              labels: ['dependencies'],
+              body: [
+                `Upstream \`docker-model-plugin\` **${latest}** is available; this repo pins **${current}**.`,
+                '',
+                'To update:',
+                '```bash',
+                `DMR_VERSION=${latest} ./scripts/build-plugin.sh`,
+                './scripts/lint-plg.sh',
+                './scripts/verify-release.sh',
+                '```',
+                '',
+                'Then update `CHANGELOG.md` and open a PR.',
+              ].join('\n'),
+            });

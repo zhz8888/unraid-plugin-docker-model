@@ -1,0 +1,12 @@
+# Normalise line endings for cross-platform contributors.
+* text=auto eol=lf
+
+# Shell scripts must keep LF and stay executable
+*.sh text eol=lf
+*.plg.in text eol=lf
+
+# Build artifacts are binary
+*.txz binary
+*.deb binary
+*.rpm binary
+*.png binary

@@ -1,0 +1,102 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'docker-model-plugin version to build'
+        required: false
+        default: '1.2.9'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build and verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Build the plugin
+        run: ./scripts/build-plugin.sh
+        env:
+          DMR_VERSION: ${{ github.event.inputs.version || '1.2.9' }}
+
+      - name: Lint the generated .plg
+        run: ./scripts/lint-plg.sh
+
+      - name: Verify artifacts
+        run: ./scripts/verify-release.sh
+
+      - name: Check reproducibility (same tree)
+        run: |
+          set -euo pipefail
+          BEFORE=$(sha256sum dist/*.txz | awk '{print $1}')
+          ./scripts/build-plugin.sh
+          AFTER=$(sha256sum dist/*.txz | awk '{print $1}')
+          if [ "$BEFORE" != "$AFTER" ]; then
+            echo "::error::build is not reproducible ($BEFORE != $AFTER)"
+            exit 1
+          fi
+          echo "reproducible build: $AFTER"
+
+      - name: Check reproducibility (from a fresh clone)
+        run: |
+          set -euo pipefail
+          HERE=$(sha256sum dist/*.txz | awk '{print $1}')
+          git clone --quiet . /tmp/rebuild-check
+          ( cd /tmp/rebuild-check && ./scripts/build-plugin.sh )
+          THERE=$(sha256sum /tmp/rebuild-check/dist/*.txz | awk '{print $1}')
+          if [ "$HERE" != "$THERE" ]; then
+            echo "::error::build depends on the checkout location ($HERE != $THERE)"
+            exit 1
+          fi
+          echo "reproducible across checkouts: $THERE"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: unraid-plugin-docker-model
+          path: |
+            dist/*.txz
+            dist/*.plg
+          if-no-files-found: error
+
+  release:
+    name: Attach artifacts to release
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Build with the tag version
+        run: ./scripts/build-plugin.sh
+        env:
+          DMR_VERSION: ${{ github.ref_name }}
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.txz
+            dist/*.plg
+          generate_release_notes: true

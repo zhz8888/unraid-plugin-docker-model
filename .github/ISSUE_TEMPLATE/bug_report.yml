@@ -1,0 +1,79 @@
+name: Bug report
+description: Report a problem with the plugin or its install scripts
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+        **Before you continue:** if the problem is with `docker model` itself
+        (pulling models, running inference, the runner container), please report
+        it upstream at https://github.com/docker/model-runner/issues — this repo
+        only packages that binary for Unraid.
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      description: Output of `docker model version`
+      placeholder: v1.2.9
+    validations:
+      required: true
+
+  - type: input
+    id: unraid-version
+    attributes:
+      label: Unraid version
+      description: Output of `cat /etc/unraid-version`
+      placeholder: 'version="7.3.2"'
+    validations:
+      required: true
+
+  - type: input
+    id: docker-version
+    attributes:
+      label: Docker version
+      description: Output of `docker version --format '{{.Server.Version}}'`
+      placeholder: 29.5.3
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: A clear description of the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: |
+        Paste the full command output. Useful commands:
+        - `docker info --format '{{json .ClientInfo.Plugins}}'`
+        - `ls -la /usr/libexec/docker/cli-plugins/`
+        - `docker model status`
+      render: shell
+    validations:
+      required: false
