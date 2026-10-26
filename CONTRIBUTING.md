@@ -88,7 +88,9 @@ The maintainer then tags a release and attaches the txz.
 
 ## Commit messages
 
-[Conventional Commits](https://www.conventionalcommits.org/) are preferred:
+[Conventional Commits](https://www.conventionalcommits.org/) are preferred.
+Commit messages are written in **English**, matching the language of the code
+and of the user-facing output.
 
 ```
 feat: add arm64 build support
