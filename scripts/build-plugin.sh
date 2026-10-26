@@ -205,57 +205,107 @@ EOF
 log "packing ${TXZ_NAME} ..."
 
 # ---- Reproducible build -------------------------------------------------
-# Three independent sources of nondeterminism have to be removed:
+# The archive must be byte-identical on every platform, not merely repeatable
+# on one machine. Shelling out to `tar` cannot deliver that, because tar
+# implementations disagree even when told to emit the same format:
 #
-#  1. mtimes -- bsdtar has no --mtime (GNU tar does), so normalise with touch.
-#  2. macOS extended attributes -- bsdtar (libarchive) writes them as
-#     LIBARCHIVE.xattr.* pax extended headers, and a file copied out of a git
-#     clone or downloaded via a browser carries com.apple.provenance /
-#     com.apple.quarantine. That makes the txz hash depend on where the tree
-#     came from. Clear them before packing.
-#  3. directory traversal order -- `tar -c .` emits members in readdir order,
-#     which is filesystem dependent. macOS and Linux produced "./usr/..." and
-#     "./install/..." in opposite orders, so the same inputs gave different
-#     archives. Pack an explicitly sorted member list instead.
+#   field      GNU tar (Linux/CI)        bsdtar (macOS)
+#   ---------  ------------------------  ------------------------
+#   mode       "0000755\0"               "000755 \0"
+#   uname      real user name            empty
+#   order      readdir order             readdir order (differs)
+#   xattrs     n/a                        LIBARCHIVE.xattr.* pax headers
 #
-# Without all three, the "reproducible build" claim in the README does not hold.
-REPRO_MTIME="202001010000"
-
-if command -v xattr >/dev/null 2>&1; then
-  # macOS: drop every extended attribute under the staging tree
-  xattr -rc "${STAGE}" 2>/dev/null || true
-fi
-
-# GNU tar (Linux, CI) refuses to pack when --no-xattrs is unknown, so probe first
-TAR_XATTR_FLAG=""
-if tar --no-xattrs -cf /dev/null --files-from /dev/null 2>/dev/null; then
-  TAR_XATTR_FLAG="--no-xattrs"
-fi
-
-# Normalise mtimes last: xattr and touch both perturb ctime but tar only
-# records mtime, and touch must win so the recorded value is fixed.
-find "${STAGE}" -exec touch -t "${REPRO_MTIME}" {} +
-
-# Sort members and use --no-recursion so tar never decides the order itself.
-# LC_ALL=C keeps the collation identical across locales. The list must contain
-# "." first so the archive root entry exists, matching the previous layout.
-MEMBER_LIST="${WORK_DIR}/members.txt"
-(
-  cd "${STAGE}"
-  printf '.\n'
-  find . -mindepth 1 | LC_ALL=C sort
-) > "${MEMBER_LIST}"
-
-# Pin the archive format. bsdtar defaults to pax (which emits extended headers
-# that differ between libarchive versions) and GNU tar defaults to its own
-# variant; ustar is the lowest common denominator and both implementations emit
-# it identically.
+# Two earlier attempts -- touch-based mtime normalisation, then xattr clearing
+# plus --format=ustar and a sorted member list -- each fixed one dimension and
+# still produced different hashes across OSes (Linux 0d545fb9 vs macOS
+# 6cadda84).
 #
-# --owner/--group 0 makes the extracted files root-owned on Unraid.
-# Both BSD tar and GNU tar accept these flags.
-( cd "${STAGE}" && tar ${TAR_XATTR_FLAG} --no-recursion --format=ustar \
-    --owner=0 --group=0 --numeric-owner \
-    --files-from "${MEMBER_LIST}" -cJf "${DIST_DIR}/${TXZ_NAME}" )
+# So the archive is now written by Python's tarfile module instead. It is a
+# single implementation that ships with the interpreter, so macOS and Linux
+# emit identical bytes by construction, and every header field is set
+# explicitly rather than inherited from the platform tool.
+python3 - "${STAGE}" "${DIST_DIR}/${TXZ_NAME}" <<'PY'
+import hashlib
+import io
+import lzma
+import os
+import sys
+import tarfile
+
+stage, out_path = sys.argv[1], sys.argv[2]
+
+# 2020-01-01T00:00:00Z -- fixed timestamp so mtime never varies
+FIXED_MTIME = 1577836800
+
+def collect(root):
+    """Return [(relpath, realpath)] sorted with a stable C-style order."""
+    entries = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        rel_dir = os.path.relpath(dirpath, root)
+        if rel_dir == '.':
+            rel_dir = ''
+        for name in dirnames + filenames:
+            rel = os.path.join(rel_dir, name) if rel_dir else name
+            entries.append(rel)
+    # sort by path components so the order is locale-independent and matches
+    # what a directory-first walk would produce
+    entries.sort(key=lambda p: p.split(os.sep))
+    return entries
+
+def make_tarinfo(rel, realpath):
+    st = os.lstat(realpath)
+    ti = tarfile.TarInfo('./' + rel if not rel.startswith('.') else rel)
+    ti.mtime = FIXED_MTIME
+    ti.uid = 0
+    ti.gid = 0
+    ti.uname = ''
+    ti.gname = ''
+    if os.path.isdir(realpath):
+        ti.type = tarfile.DIRTYPE
+        ti.mode = 0o755
+        ti.size = 0
+    elif os.path.islink(realpath):
+        ti.type = tarfile.SYMTYPE
+        ti.mode = 0o755
+        ti.linkname = os.readlink(realpath)
+        ti.size = 0
+    else:
+        ti.type = tarfile.REGTYPE
+        # preserve the executable bit, drop everything else
+        ti.mode = 0o755 if st.st_mode & 0o111 else 0o644
+        ti.size = st.st_size
+    return ti
+
+raw = io.BytesIO()
+with tarfile.open(fileobj=raw, mode='w', format=tarfile.USTAR_FORMAT) as tf:
+    # root entry first, matching the previous archive layout
+    root_ti = tarfile.TarInfo('.')
+    root_ti.type = tarfile.DIRTYPE
+    root_ti.mode = 0o755
+    root_ti.mtime = FIXED_MTIME
+    root_ti.uid = root_ti.gid = 0
+    root_ti.uname = root_ti.gname = ''
+    tf.addfile(root_ti)
+
+    for rel in collect(stage):
+        realpath = os.path.join(stage, rel)
+        ti = make_tarinfo(rel, realpath)
+        if ti.type == tarfile.REGTYPE:
+            with open(realpath, 'rb') as fh:
+                tf.addfile(ti, fh)
+        else:
+            tf.addfile(ti)
+
+data = raw.getvalue()
+# preset 6 with a fixed filter keeps the xz stream deterministic
+compressed = lzma.compress(data, format=lzma.FORMAT_XZ, preset=6)
+with open(out_path, 'wb') as fh:
+    fh.write(compressed)
+
+print('sha256', hashlib.sha256(compressed).hexdigest())
+print('bytes', len(compressed))
+PY
 
 TXZ_SHA256="$(sha256_of "${DIST_DIR}/${TXZ_NAME}")"
 TXZ_SIZE=$(wc -c < "${DIST_DIR}/${TXZ_NAME}" | tr -d ' ')
