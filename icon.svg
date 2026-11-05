@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Docker Model Runner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2496ED"/>
+      <stop offset="1" stop-color="#1254A8"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="256" height="256" rx="44" ry="44" fill="url(#bg)"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M128 43 L202 86 L128 129 L54 86 Z"/>
+    <path d="M54 86 L54 173 L128 216 L202 173 L202 86"/>
+    <path d="M128 129 L128 216"/>
+  </g>
+</svg>

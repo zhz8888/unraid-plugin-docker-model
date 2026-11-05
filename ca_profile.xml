@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Repository profile for Community Apps.
+
+  The file name has to be exactly ca_profile.xml and it has to live in the
+  repository root. Community Apps blocks the finalization of a submission
+  when the file is missing or when the <Profile> element is empty.
+
+  See https://ca.unraid.net/submit/help/repository-info-xml
+-->
+<CommunityApplications>
+  <Profile>
+    unraid-plugin-docker-model packages the Docker Model Runner CLI plugin for
+    Unraid. The plugin adds the "docker model" command to the Unraid Docker
+    CLI, so AI models can be pulled, run and served locally. The upstream
+    binary is redistributed unmodified from Docker's official apt artifact and
+    is verified against the download.docker.com Packages index on every
+    build. The repository contains the plugin definition, the Slackware
+    packaging, the WebGUI page and the build and verification scripts.
+  </Profile>
+  <Icon>https://raw.githubusercontent.com/zhz8888/unraid-plugin-docker-model/main/icon.svg</Icon>
+  <WebPage>https://github.com/zhz8888/unraid-plugin-docker-model</WebPage>
+  <!--
+    A forum thread is required before the plugin can be listed in Community
+    Apps. Uncomment it once the thread exists.
+  -->
+  <!-- <Forum>https://forums.unraid.net/topic/YOUR_SUPPORT_TOPIC</Forum> -->
+</CommunityApplications>

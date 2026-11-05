@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Community Applications entry for unraid-plugin-docker-model.
+
+  This is the metadata the Community Applications app reads. It is a
+  different format from the .plg plugin definition: the .plg describes how
+  the plugin is installed, this file describes how the plugin is listed in
+  the Apps tab.
+
+  Requirements taken from the official submission guide:
+
+    - The <PluginURL> must match the pluginURL attribute of the .plg file
+      exactly, otherwise the self update path installs a different file.
+    - The .plg already carries a support attribute, so the wrapper <Support>
+      is optional. Replace it with a forum thread once one exists: Community
+      Apps expects a forum topic as the support address of a plugin.
+    - The repository root needs a ca_profile.xml with a non-empty <Profile>.
+
+  Before this entry can be submitted:
+
+    1. Create a support thread in the Unraid forums under
+       "Community Applications" and put its URL into <Support>.
+    2. Check that the <Category> value is one the CA app offers.
+    3. Open a pull request against
+       https://github.com/unraid/community.applications and add this file to
+       its plugins/ directory.
+
+  See docs/05-unraid-plugin-conventions.md for the full checklist.
+-->
+<Containers>
+  <PluginURL>https://github.com/zhz8888/unraid-plugin-docker-model/releases/latest/download/unraid-plugin-docker-model.plg</PluginURL>
+  <PluginAuthor>zhz8888</PluginAuthor>
+  <Beta>False</Beta>
+  <Category>Tools:System</Category>
+  <Name>Docker Model Runner</Name>
+  <Description>Run AI models locally with the Docker Model Runner CLI plugin for Unraid.</Description>
+  <Overview>
+    Docker Model Runner brings the `docker model` command to the Unraid Docker CLI.
+
+    [b]Features:[/b]
+    - Pull, run and serve AI models on your Unraid server.
+    - The `docker model` CLI plugin is installed into the Docker CLI plugin directory and restored on every boot.
+    - A Settings page reports the CLI version, the Model Runner state and the models that are available locally.
+    - One click install of the Model Runner for CPU only or with GPU support.
+
+    [b]Requirements:[/b]
+    - Unraid 7.0 or newer
+    - Docker 20.10 or newer
+
+    The runner container is not installed by the plugin. Deploy it on demand with `docker model install-runner`.
+  </Overview>
+  <Support>https://github.com/zhz8888/unraid-plugin-docker-model/issues</Support>
+  <Project>https://github.com/zhz8888/unraid-plugin-docker-model</Project>
+  <ReadMe>https://github.com/zhz8888/unraid-plugin-docker-model/blob/main/README.md</ReadMe>
+  <License>https://github.com/zhz8888/unraid-plugin-docker-model/blob/main/LICENSE</License>
+  <Icon>https://raw.githubusercontent.com/zhz8888/unraid-plugin-docker-model/main/src/usr/local/emhttp/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.png</Icon>
+</Containers>
