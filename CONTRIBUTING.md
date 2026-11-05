@@ -45,15 +45,31 @@ Two versions are tracked independently:
 
 | Variable | Format | Meaning |
 |---|---|---|
-| `PLUGIN_VERSION` | `YYYY.MM.DD.HHMM` | This plugin's own release version. Defaults to the current UTC time; pin it for a reproducible build. |
+| `PLUGIN_VERSION` | `YYYYMMDD` | This plugin's own release version: the release date. Defaults to the current local date; pin it for a reproducible build. |
 | `DMR_VERSION` | `1.2.9` | The bundled `docker-model-plugin` release. |
 
+When more than one release happens on the same day, the later ones carry a
+letter suffix:
+
+```
+20261105      the first release of that day
+20261105.a    the second release of that day
+20261105.b    the third release of that day
+20261106      the next day
+```
+
 The Unraid installer compares plugin versions with `strcmp()`, a byte-wise
-string compare, so the plugin version has to sort lexicographically. A
-fixed-width date does; a semantic version does not — `1.2.10` sorts *below*
-`1.2.9`, and Unraid would refuse the upgrade. The plugin version must also be
-independent of the upstream version, otherwise a repackaging of the same
-upstream release never reaches the users who already installed it.
+string compare, so the format has to sort in release order. This one does:
+
+```
+20261105 < 20261105.a < 20261105.b < 20261106
+```
+
+The first release of a day therefore carries no suffix. A semantic version
+does not sort this way — `1.2.10` sorts *below* `1.2.9`, and Unraid would
+refuse the upgrade. The plugin version must also be independent of the
+upstream version, otherwise a repackaging of the same upstream release never
+reaches the users who already installed it.
 
 ## Before opening a pull request
 

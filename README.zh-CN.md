@@ -138,8 +138,8 @@ make lint      # 对生成的 .plg 做静态检查
 make verify    # 校验哈希与包内结构
 
 ls dist/
-# unraid-plugin-docker-model-2026.11.05.2050-x86_64-1.txz   <- Slackware 安装包
-# unraid-plugin-docker-model.plg                             <- Unraid 插件定义文件
+# unraid-plugin-docker-model-20261105-x86_64-1.txz   <- Slackware 安装包
+# unraid-plugin-docker-model.plg                     <- Unraid 插件定义文件
 ```
 
 覆盖版本或架构：
@@ -147,7 +147,7 @@ ls dist/
 ```bash
 DMR_VERSION=1.2.6               make build   # 换一个上游版本
 DMR_ARCH=arm64                  make build   # 换一个架构
-PLUGIN_VERSION=2026.11.05.2050  make build   # 固定插件版本号
+PLUGIN_VERSION=20261105         make build   # 固定插件版本号
 ```
 
 构建是**可复现**的：mtimes 已归一化、打包前清除了 macOS 扩展属性，
@@ -160,8 +160,22 @@ txz SHA256。CI 会连续构建两次并比对 hash 来强制保证这一点。
 
 | 版本 | 格式 | 含义 |
 |---|---|---|
-| 插件版本 | `YYYY.MM.DD.HHMM` | 插件自身的发布版本。Unraid 安装器用 `strcmp()`（按字节比较字符串）比较插件版本，所以版本号必须能按字典序递增——固定宽度的日期可以，语义化版本不行：`1.2.10` 排在 `1.2.9` **之后**（字节 `1` < `9`），Unraid 会拒绝这次升级。 |
+| 插件版本 | `YYYYMMDD` | 插件自身的发布版本：发布日期。 |
 | 上游版本 | `1.2.9` | 捆绑的 `docker-model-plugin` 版本，记录在更新日志、包描述和 WebGUI 页面里。 |
+
+同一天发布多次时，后面的版本追加一个字母后缀：
+
+```
+20261105      当天的第一个版本
+20261105.a    当天的第二个版本
+20261105.b    当天的第三个版本
+20261106      第二天
+```
+
+Unraid 安装器用 `strcmp()`（按字节比较字符串）比较插件版本，所以格式必须能按
+发布顺序递增。这套格式可以（`20261105 < 20261105.a < 20261105.b < 20261106`）；
+语义化版本不行：`1.2.10` 排在 `1.2.9` **之后**（字节 `1` < `9`），Unraid 会拒绝
+这次升级。
 
 插件版本**刻意不跟随**上游版本：同一个上游版本的重新打包——比如修了安装脚本、
 加了 WebGUI 页面——同样要能推给已经装过的用户。

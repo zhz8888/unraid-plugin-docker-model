@@ -203,7 +203,8 @@ docker model install-runner --gpu none
 
 | 锁定项 | 值 | 原因 |
 |---|---|---|
-| 插件版本 | `YYYY.MM.DD.HHMM`（如 `2026.11.05.2050`） | Unraid 用 `strcmp()` 比较插件版本，固定宽度的日期能保证字典序与时间序一致；语义化版本会出事（`1.2.10 < 1.2.9`） |
+| 插件版本 | `YYYYMMDD`（如 `20261105`） | Unraid 用 `strcmp()` 比较插件版本，发布日期格式能保证字节序与时间序一致；语义化版本会出事（`1.2.10 < 1.2.9`） |
+| 同日第二版 | `YYYYMMDD.a`（再往后 `.b`、`.c`） | 同一天多次发布时用字母后缀区分，`20261105 < 20261105.a < 20261105.b < 20261106` |
 | CLI 插件版本 | `1.2.9` | 与 runner 镜像同源 tag，避免协议不匹配；作为 `upstream` 单独记录 |
 | runner 镜像 tag | `latest`（默认）或 `v1.2.9` | `install-runner` 默认拉 `latest`；如需固定可 `MODEL_RUNNER_CONTROLLER_VERSION=v1.2.9` |
 | 最低 Unraid | `7.0.0` | 7.0 起才有 `/usr/libexec/docker/cli-plugins` |

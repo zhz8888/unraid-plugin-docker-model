@@ -150,8 +150,8 @@ make lint      # static checks on the generated .plg
 make verify    # hash and layout verification
 
 ls dist/
-# unraid-plugin-docker-model-2026.11.05.2050-x86_64-1.txz   <- Slackware package
-# unraid-plugin-docker-model.plg                             <- Unraid plugin definition
+# unraid-plugin-docker-model-20261105-x86_64-1.txz   <- Slackware package
+# unraid-plugin-docker-model.plg                     <- Unraid plugin definition
 ```
 
 Override the bundled version or architecture:
@@ -159,7 +159,7 @@ Override the bundled version or architecture:
 ```bash
 DMR_VERSION=1.2.6      make build   # a different upstream release
 DMR_ARCH=arm64         make build   # a different architecture
-PLUGIN_VERSION=2026.11.05.2050 make build  # pin the plugin version
+PLUGIN_VERSION=20261105 make build  # pin the plugin version
 ```
 
 The build is **reproducible**: mtimes are normalised and macOS extended
@@ -173,8 +173,24 @@ Two versions are tracked independently:
 
 | Version | Format | Meaning |
 |---|---|---|
-| Plugin version | `YYYY.MM.DD.HHMM` | This plugin's own release version. The Unraid installer compares plugin versions with `strcmp()`, a byte-wise string compare, so the version has to sort lexicographically — a fixed-width date does, a semantic version such as `1.2.10` does not (it sorts *below* `1.2.9`, and Unraid would refuse the upgrade). |
+| Plugin version | `YYYYMMDD` | This plugin's own release version: the release date. |
 | Upstream version | `1.2.9` | The bundled `docker-model-plugin` release. Recorded in the changelog, the package description and the WebGUI page. |
+
+When more than one release happens on the same day, the later ones carry a
+letter suffix:
+
+```
+20261105      the first release of that day
+20261105.a    the second release of that day
+20261105.b    the third release of that day
+20261106      the next day
+```
+
+The Unraid installer compares plugin versions with `strcmp()`, a byte-wise
+string compare, so the format has to sort in release order. This one does
+(`20261105 < 20261105.a < 20261105.b < 20261106`); a semantic version such as
+`1.2.10` does not, because it sorts *below* `1.2.9` and Unraid would refuse
+the upgrade.
 
 The plugin version is deliberately **not** tied to the upstream version: a
 repackaging of the same upstream release — a fixed install script, a new WebGUI
