@@ -6,12 +6,19 @@
 |---|---|
 | 插件定义 | `*.plg`（XML），放在 `/boot/config/plugins/` |
 | 开机执行 | `/etc/rc.d/rc.local` 遍历 `/boot/config/plugins/*.plg`，逐个 `plugin install` |
-| 安装器 | `/usr/local/sbin/plugin`（PHP），下载 `<FILE>` → 校验 `<SHA256>` → 执行 `<FILE Run>` |
-| 已装标记 | 成功后建软链 `/var/log/plugins/<name>.plg → /boot/config/plugins/<name>.plg` |
-| 文件缓存 | `<FILE Name="/boot/config/plugins/<name>/xxx">` 下载后缓存在 flash 上，开机复用不重复下载 |
+| 安装器 | `/usr/local/sbin/plugin`（PHP，源码见 `unraid/webgui` → `emhttp/plugins/dynamix.plugin.manager/scripts/plugin`），下载 `<FILE>` → 校验 `<SHA256>` → 执行 `<FILE Run>` |
+| 已装标记 | 成功后建软链 `/var/log/plugins/<plg 文件名>.plg → /boot/config/plugins/<plg 文件名>.plg`（按**文件名**建，不是按 `name` 属性） |
+| 文件缓存 | `<FILE Name="/boot/config/plugins/<name>/xxx">` 下载后缓存在 flash 上，**已存在的文件不会被覆盖**，所以缓存文件名必须带版本号 |
+| 版本比较 | 插件版本之间用 `strcmp()`（按字节比较字符串），不是语义化比较；`min`/`max` 与 Unraid 版本之间才用 `version_compare()` |
 | 包管理 | Slackware 原生：`installpkg` / `upgradepkg --install-new` / `removepkg` / `makepkg` |
 | 卸载 | `<FILE Run="..." Method="remove">` |
 
+> **两次重启语义**：`/var/log` 是 tmpfs（`rc.S` 里 `mount -t tmpfs … /var/log`），
+> `/usr` 是只读 squashfs + 内存 overlay。两者都不跨重启，所以**每次开机都是全新安装**，
+> 安装脚本每次都会执行。这也是安装脚本必须幂等、且**绝不能以非零状态退出**的原因：
+> 非零退出会让安装器把 `.plg` 移到 `/boot/config/plugins-error/`，并且不建
+> `/var/log/plugins` 软链——插件在 WebGUI 里既不显示、也没有卸载按钮。
+>
 > 参考实现：`unraid/unraid-tailscale` 的 `plugin/tailscale.plg`（结构最标准）。
 
 ### 两个 `.plg`：直连版与代理版
@@ -72,20 +79,28 @@ flowchart TD
 ```mermaid
 %%{init: {"flowchart": {"wrappingWidth": 400}}}%%
 flowchart TD
+  SIBLING["0. 清理代理版 .plg<br/>安装器按 .plg 文件名建软链，两个同名插件会在 Plugins 页显示成两条"]
   PREFLIGHT["1. 前置检查<br/>/usr/libexec/docker/cli-plugins 是否存在？（仅 Unraid 7.0+）<br/>txz 是否已由插件安装器下载完成？"]
   INSTALL["2. upgradepkg --install-new &lt;txz&gt;<br/>把 docker-model 安装到 /usr/libexec/docker/cli-plugins/docker-model"]
-  CLEAN["3. 清理残留在 vfat 上的旧副本<br/>/root/.docker → /boot/config/plugins/dockerMan（vfat，不支持 chmod）<br/>残留的 ~/.docker/cli-plugins/docker-model 会遮蔽系统目录并报 permission denied，必须删除"]
-  VERIFY["4. 用 docker model version 验证"]
-  NEXT["5. 打印后续步骤（install-runner / gh-proxy 用法）"]
+  VERIFY["3. 校验已安装二进制的 SHA256"]
+  CLEAN["4. 清理其它 Docker CLI 插件目录里的同名副本<br/>Docker CLI 按固定顺序查找，先命中的生效<br/>/root/.docker → /boot/config/plugins/dockerMan（vfat，不支持 chmod）"]
+  PRUNE["5. 清理 flash 上的旧版本 txz"]
+  REPORT["6. 用 docker model version 验证并打印后续步骤"]
 
+  SIBLING --> PREFLIGHT
   PREFLIGHT --> INSTALL
-  INSTALL --> CLEAN
-  CLEAN --> VERIFY
-  VERIFY --> NEXT
+  INSTALL --> VERIFY
+  VERIFY --> CLEAN
+  CLEAN --> PRUNE
+  PRUNE --> REPORT
 ```
 
 **幂等性**：`upgradepkg --install-new` 对已装同版本是 no-op，`rm -f` 对不存在文件是 no-op，
 因此开机反复执行安全。
+
+**永远 `exit 0`**：任何失败分支都只打印错误，不让脚本以非零状态退出。原因见第一节：
+非零退出会中止安装、把 `.plg` 移进 `plugins-error/`，插件从此在 WebGUI 里不可见、
+不可卸载。插件保持「已注册」状态，用户才能自己卸载或更新。
 
 ## 四、卸载流程
 
@@ -188,9 +203,14 @@ docker model install-runner --gpu none
 
 | 锁定项 | 值 | 原因 |
 |---|---|---|
-| CLI 插件版本 | `1.2.9` | 与 runner 镜像同源 tag，避免协议不匹配 |
+| 插件版本 | `YYYY.MM.DD.HHMM`（如 `2026.11.05.2050`） | Unraid 用 `strcmp()` 比较插件版本，固定宽度的日期能保证字典序与时间序一致；语义化版本会出事（`1.2.10 < 1.2.9`） |
+| CLI 插件版本 | `1.2.9` | 与 runner 镜像同源 tag，避免协议不匹配；作为 `upstream` 单独记录 |
 | runner 镜像 tag | `latest`（默认）或 `v1.2.9` | `install-runner` 默认拉 `latest`；如需固定可 `MODEL_RUNNER_CONTROLLER_VERSION=v1.2.9` |
 | 最低 Unraid | `7.0.0` | 7.0 起才有 `/usr/libexec/docker/cli-plugins` |
+
+**插件版本与上游版本解耦**：插件版本描述的是「这个插件包」，上游版本描述的是
+「里面那个二进制」。同一个上游版本的重新打包（修安装脚本、加 WebGUI 页面）
+同样要能推给已安装的用户，所以两者不能绑死。
 
 **升级 CLI 与镜像要同步**：CLI 1.2.9 对 runner 1.0.0 是兼容的（实测通过），
 但跨大版本（如 CLI 1.0 → 1.2）建议一起升。

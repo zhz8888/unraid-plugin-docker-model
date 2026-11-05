@@ -11,6 +11,7 @@ are in English.
 | [02-technical-design.md](02-technical-design.md) | Unraid plugin mechanics, why the CLI plugin and the runner container are separate, install/uninstall flow, ar parsing rationale, registry proxy prefix handling, licensing, version pinning |
 | [03-verification-log.md](03-verification-log.md) | Measured evidence: environment baseline, upstream release audit across Unraid 7.2.0 → 7.4.0, binary provenance checks, source-build comparison, end-to-end run on a real Unraid host, pitfalls encountered |
 | [04-roadmap.md](04-roadmap.md) | Milestone status, release steps, on-host install verification, Community Applications listing, optional WebGUI, open questions, maintenance cadence |
+| [05-unraid-plugin-conventions.md](05-unraid-plugin-conventions.md) | Rule by rule mapping of the official Unraid plugin rules onto this plugin: hard requirements, best practices, the defects this revision fixed, and the points that still need verification on a real host |
 
 ## Reading order
 
@@ -22,7 +23,8 @@ If you are evaluating whether to trust this plugin:
 If you are modifying the packaging:
 
 1. `02-technical-design.md` — how the `.plg` and scripts fit together
-2. `04-roadmap.md` — what is done and what is still open
+2. `05-unraid-plugin-conventions.md` — which rules the packaging has to satisfy
+3. `04-roadmap.md` — what is done and what is still open
 
 ## Related top-level documents
 

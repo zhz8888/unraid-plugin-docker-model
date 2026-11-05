@@ -10,11 +10,12 @@
 | P1 | 跨平台可复现构建（Linux CI 与 macOS 本地产物逐字节一致） | ✅ 完成 |
 | P2 | 发布仓库（GitHub Release + `pluginURL` 资产） | ✅ 完成 |
 | P3 | 在真实 Unraid 主机上通过 `.plg` 正式安装验证 | 🔲 **下一步** |
-| P4 | CA（Community Applications）上架 | ⬜ 待办 |
-| P5 | 可选：图形界面（Settings 页） | ⬜ 待办 |
+| P4 | CA（Community Applications）上架 | 🔄 材料已备（`ca_profile.xml` + wrapper XML），待发论坛帖 |
+| P5 | 图形界面（Settings 页） | ✅ 完成（`src/.../DockerModelRunner.page`） |
+| P6 | 对齐 Unraid 官方插件规范 | ✅ 完成（见 `docs/05-unraid-plugin-conventions.md`） |
 | 文档 | `docs/03` 按最终构建方案回填实测哈希 | ⬜ 待办 |
 
-> 最近一次核对：**2026-10-27**。P2 的完成状态基于已发布的 Release 1.2.9 实测校验，
+> 最近一次核对：**2026-11-05**。P2 的完成状态基于已发布的 Release 1.2.9 实测校验，
 > 而非仅凭提交记录推断。
 
 ---
@@ -68,6 +69,11 @@ $ ./scripts/verify-release.sh \
 > 补齐代理版时只能重新发布同一个 `1.2.9`，tag 前移到包含新插件文件的提交。
 > 插件的 `version` 属性也随之保持 `1.2.9`，所以**已安装的用户不会收到更新提示**——
 > 代理版面向的是新装机的中国大陆用户。
+>
+> ⚠️ **该问题已在 2026-11-05 修复**：插件版本改为日期式 `YYYY.MM.DD.HHMM`，
+> 与上游版本解耦。更关键的是，Unraid 安装器用 `strcmp()` 比较插件版本，
+> 原来的 `1.2.9` 方案在上游发布 `1.2.10` 时会被判定为**更旧**而拒绝安装。
+> 详见 `docs/05-unraid-plugin-conventions.md`。
 
 > 生成的 `.plg` 是构建产物（`dist/` 被 gitignore），因此通过 Release 资产分发，
 > 不提交进仓库。`pluginURL` 与下载链接都使用 GitHub 的
@@ -133,43 +139,48 @@ ssh root@<unraid-host> "docker model version"
 
 ## P4 · CA 上架
 
-需要：
+**仓库侧材料已备齐**：
 
-1. 提交到 [unraid/community.applications](https://github.com/unraid/community.applications) 的模板仓库
-2. 提供 `unraid-plugin-docker-model.xml`（CA 用的元数据，与 `.plg` 不同）
-3. 提供图标（PNG，建议 256×256）
+| 文件 | 作用 |
+|---|---|
+| `ca_profile.xml` | 仓库根目录的仓库信息，`<Profile>` 非空是 CA 的硬性提交门槛 |
+| `icon.svg` | 仓库根目录图标 |
+| `ca/unraid-plugin-docker-model.xml` | 插件条目（wrapper XML） |
 
-CA 模板示例（放在独立 repo 的 `templates/` 下）：
+wrapper XML 的 `<PluginURL>` 必须与 `.plg` 的 `pluginURL` 属性**完全一致**，
+两者都是 `releases/latest/download/unraid-plugin-docker-model.plg`。
 
-```xml
-<?xml version="1.0"?>
-<Container version="2">
-  <Name>unraid-plugin-docker-model</Name>
-  <Repository>zhz8888/unraid-plugin-docker-model</Repository>
-  <Category>Tools: Utilities</Category>
-  <Description>Docker Model Runner CLI plugin for Unraid</Description>
-  <Plugin>https://github.com/zhz8888/unraid-plugin-docker-model/releases/latest/download/unraid-plugin-docker-model.plg</Plugin>
-</Container>
-```
+**还差一步**：CA 要求插件有一个论坛支持帖。待办：
 
-> CA 对**插件型**（非容器型）的收录要求较严，需要先在论坛发帖积累反馈。
+1. 在 Unraid 论坛的 *Community Applications* 分类发帖，把帖子 URL 填进
+   `ca/unraid-plugin-docker-model.xml` 的 `<Support>`（以及 `ca_profile.xml` 的
+   `<Forum>`）
+2. 通过 <https://ca.unraid.net/submit> 提交；条目以 pull request 的形式进
+   [unraid/community.applications](https://github.com/unraid/community.applications)
+   的 `plugins/` 目录
+
+> CA 对插件型的收录要求较严，需要先在论坛发帖积累反馈。
 
 ---
 
-## P5 · 可选：图形界面
+## P5 · 图形界面（已完成）
 
-Unraid 插件可以带 WebGUI 页面（`/usr/local/emhttp/plugins/<name>/`）。可做：
+WebGUI 页面随 Slackware 包一起安装，位于
+`/usr/local/emhttp/plugins/unraid-plugin-docker-model/`：
 
-- **Settings → Docker Model Runner** 页
-  - runner 状态（running / stopped / 版本）
-  - 已安装模型列表 + 大小
-  - 一键 install / uninstall runner
-  - GPU 选择（none / cuda / rocm）
-  - 端口配置
-  - 常用模型的快捷 pull 按钮
-- 后端 PHP 脚本调 `docker model` CLI
+- **Settings → Docker Model Runner**（`DockerModelRunner.page`）
+  - 插件版本、捆绑的 docker-model 版本、CLI 二进制路径与校验结果
+  - Model Runner 运行状态
+  - 本地已有模型列表
+- **Settings 页签**（`DockerModelRunner-1-Settings.page`）
+  - 一键部署 runner（CPU / GPU auto），后台执行，日志写 `/var/log/docker-model-runner-install.log`
+  - 一键移除 runner（保留镜像与模型卷）
+  - 手动命令速查
 
-工作量估计：2–3 天。优先级低于 P3（P2 已完成）。
+后端 PHP 走 `docker model` CLI，用 `proc_open` + 超时保证 WebGUI 不被卡住；
+操作接口只接受固定的 action 名，命令不来自请求，避免 shell 注入。
+
+> ⚠️ 页面**尚未在真实 Unraid 主机的 Dynamix 里验证过**，见 `docs/05` 第四节。
 
 ---
 

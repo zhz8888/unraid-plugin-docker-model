@@ -87,8 +87,9 @@ plugin install /boot/config/plugins/unraid-plugin-docker-model-proxy.plg
 https://gh-proxy.org/https://github.com/<owner>/<repo>/releases/download/<tag>/<file>
 ```
 
-两个文件**只需安装其中一个**：它们安装的是同一个包、插件名也相同，同时放到
-`/boot/config/plugins/` 只会让安装器在每次开机时多跑一遍。
+两个文件**只需安装其中一个**：Unraid 安装器按 `.plg` 的**文件名**建立软链，两个文件
+同时存在会在 Plugins 页显示成两条记录。如果两个都放进了 `/boot/config/plugins/`，
+主版会在下次开机时删掉代理版——这与官方 Tailscale 插件清理 preview 分支的做法一致。
 
 验证：
 
@@ -117,6 +118,11 @@ docker model pull ai/smollm2:360M-Q4_K_M
 docker model run ai/smollm2:360M-Q4_K_M "Hello"
 ```
 
+### 从 WebGUI 使用
+
+插件会新增 **Settings → Docker Model Runner** 页面，展示捆绑的 CLI 版本、
+Model Runner 运行状态和本地已有模型，并可一键部署或移除 Model Runner。
+
 ## 从源码构建
 
 不需要 Go 或 Rust 工具链——本仓库从不编译上游代码。
@@ -132,20 +138,33 @@ make lint      # 对生成的 .plg 做静态检查
 make verify    # 校验哈希与包内结构
 
 ls dist/
-# unraid-plugin-docker-model-1.2.9-x86_64-1.txz   <- Slackware 安装包
-# unraid-plugin-docker-model.plg                  <- Unraid 插件定义文件
+# unraid-plugin-docker-model-2026.11.05.2050-x86_64-1.txz   <- Slackware 安装包
+# unraid-plugin-docker-model.plg                             <- Unraid 插件定义文件
 ```
 
 覆盖版本或架构：
 
 ```bash
-DMR_VERSION=1.2.6 make build
-DMR_ARCH=arm64    make build
+DMR_VERSION=1.2.6               make build   # 换一个上游版本
+DMR_ARCH=arm64                  make build   # 换一个架构
+PLUGIN_VERSION=2026.11.05.2050  make build   # 固定插件版本号
 ```
 
 构建是**可复现**的：mtimes 已归一化、打包前清除了 macOS 扩展属性，
-因此同一上游版本在任何机器、任何检出目录都产出相同的 txz SHA256。
-CI 会连续构建两次并比对 hash 来强制保证这一点。
+因此同一「插件版本 + 上游版本」组合在任何机器、任何检出目录都产出相同的
+txz SHA256。CI 会连续构建两次并比对 hash 来强制保证这一点。
+
+### 版本号方案
+
+项目同时跟踪两个互不相关的版本号：
+
+| 版本 | 格式 | 含义 |
+|---|---|---|
+| 插件版本 | `YYYY.MM.DD.HHMM` | 插件自身的发布版本。Unraid 安装器用 `strcmp()`（按字节比较字符串）比较插件版本，所以版本号必须能按字典序递增——固定宽度的日期可以，语义化版本不行：`1.2.10` 排在 `1.2.9` **之后**（字节 `1` < `9`），Unraid 会拒绝这次升级。 |
+| 上游版本 | `1.2.9` | 捆绑的 `docker-model-plugin` 版本，记录在更新日志、包描述和 WebGUI 页面里。 |
+
+插件版本**刻意不跟随**上游版本：同一个上游版本的重新打包——比如修了安装脚本、
+加了 WebGUI 页面——同样要能推给已经装过的用户。
 
 ## 二进制来源
 
@@ -198,15 +217,35 @@ Slackware 基础的 Unraid 上可直接运行。
 
 ## 已知限制
 
-1. **`/usr` 下的任何东西重启即丢失。** `.plg` 会在开机时重跑 `upgradepkg` 恢复二进制。
+1. **`/usr` 下的任何东西重启即丢失。** Unraid 把 `/usr` 挂成「只读 squashfs + 内存
+   overlay」，而 `/var/log`（插件管理器记录「已安装」的地方）是 tmpfs。所以每次开机
+   都会重跑插件的安装脚本，从 flash 上缓存的副本恢复二进制。这也是安装脚本必须
+   幂等、且**绝不能以非零状态退出**的原因：非零退出会让安装器把 `.plg` 移到
+   `/boot/config/plugins-error/`，插件从此没有注册记录，WebGUI 里连卸载按钮都没有。
 2. **`/root/.docker` 是 `/boot/config/plugins/dockerMan` 的软链（vfat）。**
    放 `~/.docker/cli-plugins/` 的插件会丢失执行位并遮蔽系统目录，报 `permission denied`。
-   只能用 `/usr/libexec/docker/cli-plugins/`。
+   只能用 `/usr/libexec/docker/cli-plugins/`。安装脚本还会清掉 Docker CLI 其余搜索
+   目录里的同名副本——因为**先命中的那个生效**。
 3. **`docker model pull` 不读 `daemon.json` 的 `registry-mirrors`。**
    runner 直连 registry。受限网络请用带代理前缀的全名，例如
    `docker model pull gh-proxy.org/docker/ai/smollm2:360M-Q4_K_M`。
 4. **runner API 无鉴权。** 默认只绑 `127.0.0.1` 和 docker bridge 网关，
    不要把 `12434` 端口暴露到不可信网络。
+
+## 与 Unraid 官方插件规范的对照
+
+本插件遵循 Lime Technology 官方维护的插件（`unraid/unraid-tailscale`、
+`unraid/apprise-plugin`、`unraid/unraid-nvidia-driver`）的惯例：
+
+- 日期式插件版本号——因为安装器用 `strcmp()` 比较插件版本；
+- 用 Slackware 包安装（`upgradepkg`）、用 `removepkg` 卸载；
+- WebGUI 页面放在 `/usr/local/emhttp/plugins/<name>/`，`launch` 与 `icon`
+  属性指向它；
+- 每个下载文件都带 `<SHA256>`，缓存文件名里含版本号；
+- 安装脚本幂等，且永不以非零状态退出。
+
+[`docs/05-unraid-plugin-conventions.md`](docs/05-unraid-plugin-conventions.md)
+逐条给出规范与实现的对应关系，并列出仍需在真实 Unraid 主机上验证的点。
 
 ## 命名约定
 
@@ -215,9 +254,11 @@ Slackware 基础的 Unraid 上可直接运行。
 | 仓库 | `unraid-plugin-docker-model` | 本项目 |
 | Unraid 插件 | `unraid-plugin-docker-model` | `<PLUGIN name="...">` |
 | `.plg` 文件 | `unraid-plugin-docker-model.plg` | 放 `/boot/config/plugins/` |
+| 代理版 `.plg` | `unraid-plugin-docker-model-proxy.plg` | 与主版**二选一**安装 |
 | flash 缓存目录 | `/boot/config/plugins/unraid-plugin-docker-model/` | 存放 txz |
-| Slackware 包 | `unraid-plugin-docker-model-<ver>-x86_64-1.txz` | 由 `upgradepkg` 安装 |
+| Slackware 包 | `unraid-plugin-docker-model-<插件版本>-x86_64-1.txz` | 由 `upgradepkg` 安装 |
 | 安装的二进制 | `/usr/libexec/docker/cli-plugins/docker-model` | **名字固定** |
+| WebGUI 页面 | `/usr/local/emhttp/plugins/unraid-plugin-docker-model/DockerModelRunner.page` | `launch` 属性指向它 |
 | runner 容器 | `docker-model-runner` | 由 `install-runner` 创建 |
 
 安装的二进制**必须**叫 `docker-model`：docker CLI 靠 `docker-<子命令>` 的
@@ -234,19 +275,42 @@ Slackware 基础的 Unraid 上可直接运行。
 ├── SECURITY.md
 ├── LICENSE                                # MIT（本项目自身）
 ├── NOTICE                                 # 捆绑二进制的 Apache-2.0 归属声明
+├── icon.svg                               # 仓库图标（CA 收录用）
+├── ca_profile.xml                         # CA 仓库信息
 ├── Makefile                               # build / lint / verify 快捷命令
+├── ca/
+│   └── unraid-plugin-docker-model.xml     # CA 收录条目
 ├── docs/
 │   ├── README.md                          # 文档索引
 │   ├── 01-design-decisions.md             # apt 制品与源码编译选型对比
 │   ├── 02-technical-design.md             # 架构与安装/卸载流程
 │   ├── 03-verification-log.md             # 实测证据
-│   └── 04-roadmap.md                      # 里程碑与待办
+│   ├── 04-roadmap.md                      # 里程碑与待办
+│   └── 05-unraid-plugin-conventions.md    # 与 Unraid 官方插件规范的逐条对照
 ├── plugin/
 │   └── unraid-plugin-docker-model.plg.in  # Unraid 插件模板
+├── src/                                   # Slackware 包源码树
+│   ├── install/
+│   │   ├── slack-desc                     # 包描述
+│   │   └── doinst.sh                      # 安装后钩子
+│   └── usr/local/emhttp/plugins/unraid-plugin-docker-model/
+│       ├── DockerModelRunner.page         # WebGUI 页面（Settings 页签）
+│       ├── DockerModelRunner-1-Settings.page
+│       ├── page.php                       # 直接访问入口
+│       ├── README.md                      # Plugins 页的插件说明
+│       ├── settings.json                  # 插件设置
+│       ├── diagnostics.json               # 支持包定义
+│       ├── unraid-plugin-docker-model.png # 图标
+│       ├── locales/en_US.json
+│       └── include/
+│           ├── common.php                 # 公共辅助函数
+│           ├── Pages/{Status,Settings}.php
+│           └── data/Action.php            # AJAX 操作接口
 ├── scripts/
 │   ├── build-plugin.sh                    # 构建：deb -> 校验 -> 解包 -> txz -> plg
 │   ├── fetch-plugin.sh                    # 仅下载 + 校验 + 解包（审计用）
 │   ├── lint-plg.sh                        # 对 .plg 做静态检查
+│   ├── make-icon.py                       # 重新生成插件图标
 │   └── verify-release.sh                  # 校验哈希与包内结构
 └── .github/
     ├── workflows/build.yml                # CI：构建、lint、verify、可复现性校验
@@ -262,6 +326,7 @@ Slackware 基础的 Unraid 上可直接运行。
 - [技术方案](docs/02-technical-design.md) — 插件机制、安装/卸载流程、镜像前缀处理
 - [验证记录](docs/03-verification-log.md) — 真实 Unraid 主机上的实测数据
 - [开发计划](docs/04-roadmap.md) — 里程碑与待决问题
+- [官方插件规范对照](docs/05-unraid-plugin-conventions.md) — 本插件与 Unraid 官方规范的逐条映射
 
 ## 贡献
 

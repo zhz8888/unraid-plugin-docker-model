@@ -12,7 +12,10 @@ artifact, so bugs in `docker model` itself belong upstream at
 In scope for this repo:
 
 - the Unraid `.plg` definition and its install/uninstall scripts
+- the Slackware package source tree under `src/` (package description, install
+  hook, WebGUI page)
 - the build, lint and verification scripts
+- the Community Applications submission files
 - documentation
 
 ## Development setup
@@ -32,8 +35,25 @@ cd unraid-plugin-docker-model
 
 ./scripts/build-plugin.sh     # build dist/
 ./scripts/lint-plg.sh         # static checks on the generated .plg
+./scripts/check-php-syntax.py src/   # syntax check on the WebGUI sources
 ./scripts/verify-release.sh   # hash + layout verification
 ```
+
+## Version scheme
+
+Two versions are tracked independently:
+
+| Variable | Format | Meaning |
+|---|---|---|
+| `PLUGIN_VERSION` | `YYYY.MM.DD.HHMM` | This plugin's own release version. Defaults to the current UTC time; pin it for a reproducible build. |
+| `DMR_VERSION` | `1.2.9` | The bundled `docker-model-plugin` release. |
+
+The Unraid installer compares plugin versions with `strcmp()`, a byte-wise
+string compare, so the plugin version has to sort lexicographically. A
+fixed-width date does; a semantic version does not — `1.2.10` sorts *below*
+`1.2.9`, and Unraid would refuse the upgrade. The plugin version must also be
+independent of the upstream version, otherwise a repackaging of the same
+upstream release never reaches the users who already installed it.
 
 ## Before opening a pull request
 
@@ -45,7 +65,8 @@ Run all three checks and make sure they pass:
 ./scripts/verify-release.sh
 ```
 
-The build produces **two** plugin files from the single template
+The build assembles the Slackware package from `src/` plus the upstream binary
+and produces **two** plugin files from the single template
 `plugin/unraid-plugin-docker-model.plg.in`:
 
 - `unraid-plugin-docker-model.plg` — downloads from the GitHub release assets
@@ -56,6 +77,11 @@ Only the plugin URL, the download URL and the source note differ between them;
 the package, its SHA256 and the install scripts are identical. `lint-plg.sh`
 checks both files, and `verify-release.sh` asserts that they reference the same
 package with the same checksum.
+
+> Install **one** of the two files, never both: the Unraid installer registers
+> one symlink per `.plg` *file name*, so two files would show up as two entries
+> in the Plugins tab. The canonical variant removes the mirrored one on the
+> next boot.
 
 The build is **reproducible**: building the same version twice must yield the
 same txz SHA256, and it must not depend on *where* the working tree lives.
@@ -95,7 +121,35 @@ sha256sum dist/*.txz /tmp/rebuild-check/dist/*.txz   # must match
 4. Update `CHANGELOG.md`
 5. Open a PR titled `chore: bump docker-model-plugin to <version>`
 
-The maintainer then tags a release and attaches the txz.
+The maintainer then tags a release and attaches the txz. The **tag is the
+plugin version**, because the `.plg` points at the release asset under that
+tag.
+
+## Rules the plugin scripts have to follow
+
+These come from the Unraid plugin installer itself and are enforced by
+`scripts/lint-plg.sh`:
+
+- The install script must be **idempotent** — it runs again on every boot.
+- The install script must **never exit non-zero**. A non-zero exit aborts the
+  install, moves the `.plg` to `/boot/config/plugins-error/` and leaves the
+  plugin unregistered, so the user cannot uninstall it from the WebGUI.
+- The install script must not prompt for input; the installer runs it
+  non-interactively.
+- The remove script must clean up the package, the binaries and the flash
+  cache — but must not delete user data such as the runner container, its
+  image or the model volume.
+- Every `<FILE>` with a `<URL>` needs a `<SHA256>`, and the cached file name
+  has to contain the version, because the installer never overwrites a file
+  that already exists.
+- XML entities (`&name;`) are only expanded in attribute values and element
+  text. Inside a CDATA section — which is where the `<CHANGES>` block and the
+  `<INLINE>` scripts live — they stay literal, so use the build time
+  placeholders (`@@NAME@@`) there instead. `scripts/lint-plg.sh` fails the
+  build if an entity reference ends up inside a CDATA section.
+
+See [`docs/05-unraid-plugin-conventions.md`](docs/05-unraid-plugin-conventions.md)
+for the full mapping.
 
 ## Commit messages
 

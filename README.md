@@ -94,9 +94,12 @@ The same prefix works for any GitHub release URL, not just this one:
 https://gh-proxy.org/https://github.com/<owner>/<repo>/releases/download/<tag>/<file>
 ```
 
-Install **one** of the two files, not both: they install the same package under
-the same plugin name, so having both in `/boot/config/plugins/` only means the
-installer runs twice at boot.
+> **Install one of the two files, not both.**
+> The Unraid installer registers one symlink per `.plg` *file name*, so two
+> files would show up as two separate entries in the Plugins tab. If both end
+> up in `/boot/config/plugins/`, the canonical one removes the mirrored one on
+> the next boot — the same way the official Tailscale plugin removes its
+> preview build.
 
 Verify:
 
@@ -125,6 +128,13 @@ docker model pull ai/smollm2:360M-Q4_K_M
 docker model run ai/smollm2:360M-Q4_K_M "Hello"
 ```
 
+### From the WebGUI
+
+The plugin adds a **Settings → Docker Model Runner** page. It reports the
+bundled CLI version, the state of the Model Runner and the models that are
+available locally, and it can deploy or remove the Model Runner with one
+click.
+
 ## Build from source
 
 No Go or Rust toolchain is required — this repo never compiles upstream code.
@@ -140,21 +150,35 @@ make lint      # static checks on the generated .plg
 make verify    # hash and layout verification
 
 ls dist/
-# unraid-plugin-docker-model-1.2.9-x86_64-1.txz   <- Slackware package
-# unraid-plugin-docker-model.plg                  <- Unraid plugin definition
+# unraid-plugin-docker-model-2026.11.05.2050-x86_64-1.txz   <- Slackware package
+# unraid-plugin-docker-model.plg                             <- Unraid plugin definition
 ```
 
 Override the bundled version or architecture:
 
 ```bash
-DMR_VERSION=1.2.6 make build
-DMR_ARCH=arm64    make build
+DMR_VERSION=1.2.6      make build   # a different upstream release
+DMR_ARCH=arm64         make build   # a different architecture
+PLUGIN_VERSION=2026.11.05.2050 make build  # pin the plugin version
 ```
 
 The build is **reproducible**: mtimes are normalised and macOS extended
-attributes are stripped before packing, so the same upstream version produces
-the same txz SHA256 on any machine and from any checkout location. CI enforces
-this by building twice and comparing hashes.
+attributes are stripped before packing, so the same plugin version and
+upstream version produce the same txz SHA256 on any machine and from any
+checkout location. CI enforces this by building twice and comparing hashes.
+
+### Version scheme
+
+Two versions are tracked independently:
+
+| Version | Format | Meaning |
+|---|---|---|
+| Plugin version | `YYYY.MM.DD.HHMM` | This plugin's own release version. The Unraid installer compares plugin versions with `strcmp()`, a byte-wise string compare, so the version has to sort lexicographically — a fixed-width date does, a semantic version such as `1.2.10` does not (it sorts *below* `1.2.9`, and Unraid would refuse the upgrade). |
+| Upstream version | `1.2.9` | The bundled `docker-model-plugin` release. Recorded in the changelog, the package description and the WebGUI page. |
+
+The plugin version is deliberately **not** tied to the upstream version: a
+repackaging of the same upstream release — a fixed install script, a new WebGUI
+page — still has to reach the users who installed an earlier package.
 
 ## How the binary is sourced
 
@@ -209,18 +233,44 @@ package runs unmodified on Slackware-based Unraid.
 
 ## Known limitations
 
-1. **Nothing installed under `/usr` survives a reboot.** The `.plg` re-runs
-   `upgradepkg` at boot to restore the binary.
+1. **Nothing installed under `/usr` survives a reboot.** Unraid mounts `/usr`
+   as a read-only squashfs with a RAM overlay, and `/var/log` — where the
+   plugin manager keeps the "installed" registry — is a tmpfs. Every boot
+   therefore re-runs the plugin's install script, which restores the binary
+   from the copy cached on the flash device. This is also why the install
+   script must be idempotent and must never exit non-zero: a non-zero exit
+   makes the installer move the `.plg` to `/boot/config/plugins-error/`, which
+   leaves the plugin unregistered and without an Uninstall button.
 2. **`/root/.docker` is a symlink to `/boot/config/plugins/dockerMan` (vfat).**
    A plugin placed in `~/.docker/cli-plugins/` loses its execute bit and shadows
    the system directory, causing `permission denied`. Use
-   `/usr/libexec/docker/cli-plugins/` only.
+   `/usr/libexec/docker/cli-plugins/` only. The install script also removes
+   stale copies from the other directories the Docker CLI searches, because
+   the first match wins.
 3. **`docker model pull` ignores the `registry-mirrors` in `daemon.json`.**
    The runner resolves registries directly. On restricted networks use a fully
    qualified name with a proxy prefix, e.g.
    `docker model pull gh-proxy.org/docker/ai/smollm2:360M-Q4_K_M`.
 4. **The runner API is unauthenticated.** It binds to `127.0.0.1` and the docker
    bridge gateway by default. Do not expose port `12434` to untrusted networks.
+
+## Conformance with the official Unraid plugin rules
+
+The plugin follows the conventions of the plugins Lime Technology maintains
+(`unraid/unraid-tailscale`, `unraid/apprise-plugin`,
+`unraid/unraid-nvidia-driver`):
+
+- date based plugin version, because the installer compares plugin versions
+  with `strcmp()`;
+- a Slackware package installed with `upgradepkg` and removed with `removepkg`;
+- the WebGUI page under `/usr/local/emhttp/plugins/<name>/`, with the `launch`
+  and `icon` attributes pointing at it;
+- `<SHA256>` on every downloaded file, and a version in the cached file name;
+- an idempotent install script that never exits non-zero.
+
+[`docs/05-unraid-plugin-conventions.md`](docs/05-unraid-plugin-conventions.md)
+maps every rule to the code that implements it, and lists the points that
+still need verification on a real Unraid host.
 
 ## Naming conventions
 
@@ -229,9 +279,11 @@ package runs unmodified on Slackware-based Unraid.
 | Repo | `unraid-plugin-docker-model` | this project |
 | Unraid plugin | `unraid-plugin-docker-model` | `<PLUGIN name="...">` |
 | `.plg` file | `unraid-plugin-docker-model.plg` | goes in `/boot/config/plugins/` |
+| Mirrored `.plg` | `unraid-plugin-docker-model-proxy.plg` | install this one **or** the canonical one, never both |
 | Flash cache dir | `/boot/config/plugins/unraid-plugin-docker-model/` | holds the txz |
-| Slackware package | `unraid-plugin-docker-model-<ver>-x86_64-1.txz` | installed by `upgradepkg` |
+| Slackware package | `unraid-plugin-docker-model-<plugin-version>-x86_64-1.txz` | installed by `upgradepkg` |
 | Installed binary | `/usr/libexec/docker/cli-plugins/docker-model` | **name is fixed** |
+| WebGUI page | `/usr/local/emhttp/plugins/unraid-plugin-docker-model/DockerModelRunner.page` | target of the `launch` attribute |
 | Runner container | `docker-model-runner` | created by `install-runner` |
 
 The installed binary **must** be called `docker-model`: the docker CLI discovers
@@ -249,19 +301,41 @@ plugins by the `docker-<subcommand>` filename convention. Everything else uses t
 ├── SECURITY.md
 ├── LICENSE                                # MIT (this project)
 ├── NOTICE                                 # Apache-2.0 attribution for the bundled binary
+├── ca_profile.xml                         # Community Apps repository profile
 ├── Makefile                               # build / lint / verify convenience targets
+├── ca/
+│   └── unraid-plugin-docker-model.xml     # Community Apps entry for this plugin
 ├── docs/
 │   ├── README.md                          # docs index
 │   ├── 01-design-decisions.md             # apt artifact vs source build
 │   ├── 02-technical-design.md             # architecture, install/uninstall flow
 │   ├── 03-verification-log.md             # measured evidence
-│   └── 04-roadmap.md                      # milestones and TODOs
+│   ├── 04-roadmap.md                      # milestones and TODOs
+│   └── 05-unraid-plugin-conventions.md    # mapping to the official plugin rules
 ├── plugin/
 │   └── unraid-plugin-docker-model.plg.in  # Unraid plugin template
+├── src/                                   # Slackware package source tree
+│   ├── install/
+│   │   ├── slack-desc                     # package description
+│   │   └── doinst.sh                      # post-install hook
+│   └── usr/local/emhttp/plugins/unraid-plugin-docker-model/
+│       ├── DockerModelRunner.page         # WebGUI page (Settings tab)
+│       ├── DockerModelRunner-1-Settings.page
+│       ├── page.php                       # direct URL entry point
+│       ├── README.md                      # plugin description for the Plugins tab
+│       ├── settings.json                  # plugin settings
+│       ├── diagnostics.json               # support bundle definition
+│       ├── unraid-plugin-docker-model.png # icon
+│       ├── locales/en_US.json
+│       └── include/
+│           ├── common.php                 # helpers
+│           ├── Pages/{Status,Settings}.php
+│           └── data/Action.php            # AJAX action endpoint
 ├── scripts/
 │   ├── build-plugin.sh                    # build: deb -> verify -> unpack -> txz -> plg
 │   ├── fetch-plugin.sh                    # download + verify + unpack only (audit)
 │   ├── lint-plg.sh                        # static checks on the .plg
+│   ├── make-icon.py                       # regenerate the plugin icon
 │   └── verify-release.sh                  # verify hashes and layout
 └── .github/
     ├── workflows/build.yml                # CI: build, lint, verify, reproducibility
@@ -278,6 +352,7 @@ Chinese; the code, scripts and this README are in English.
 - [Technical design](docs/02-technical-design.md) — plugin mechanics, install/uninstall flow, registry prefix handling
 - [Verification log](docs/03-verification-log.md) — measured evidence from a real Unraid host
 - [Roadmap](docs/04-roadmap.md) — milestones and open questions
+- [Unraid plugin conventions](docs/05-unraid-plugin-conventions.md) — how this plugin maps to the official plugin rules
 
 ## Contributing
 
