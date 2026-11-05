@@ -1,138 +1,260 @@
 <?xml version='1.0' standalone='yes'?>
-<!DOCTYPE PLUGIN>
-
+<!DOCTYPE PLUGIN [
 <!--
-  unraid-plugin-docker-model.plg : Unraid plugin definition
-  Rendered by scripts/build-plugin.sh from the .plg.in template.
-  Placeholders wrapped in double at-signs are replaced with the actual
-  version, filenames, checksums and download URLs at build time.
+  unraid-plugin-docker-model : Unraid plugin definition.
+
+  Rendered by scripts/build-plugin.sh from this template. Placeholders wrapped
+  in double at-signs are replaced at build time with the actual version,
+  filenames, checksums and download URLs.
+
+  Structure follows the conventions the official Limetech plugins use
+  (unraid/unraid-tailscale, unraid/apprise-plugin, unraid/unraid-nvidia-driver):
+
+    - <PLUGIN> carries the attributes the Unraid plugin installer and the
+      WebGUI read: name, author, version, pluginURL, support, min, launch and
+      icon. Attributes such as donate or webUI are not honoured by the
+      installer and are therefore not used.
+    - The version is the plugin's own release version and is date based
+      (YYYY.MM.DD.HHMM), the same scheme the official plugins use. The
+      installer compares plugin versions with strcmp(), a byte wise string
+      compare, so the version has to sort lexicographically: a fixed width
+      date does that, a semantic version such as 1.2.10 does not, because it
+      sorts below 1.2.9. The version of the bundled upstream binary is
+      carried separately in the "upstream" entity.
+    - The package is cached on the flash device under
+      /boot/config/plugins/<name>/ and its SHA256 is pinned in the plugin
+      file. The version is part of the file name, because the installer never
+      overwrites a cached file that already exists.
+    - The install script (Method="install") and the remove script
+      (Method="remove") are idempotent, because the installer runs them again
+      on every boot. Neither of them may exit non-zero: a non-zero exit
+      aborts the install, moves the .plg to /boot/config/plugins-error/ and
+      keeps the plugin from being registered, so the user would lose the
+      Uninstall button in the WebGUI.
+
+  Two substitution mechanisms are in use, and the difference matters:
+
+    - XML entities (&name;, &version;, ...) are expanded by the XML parser.
+      They are therefore only used in attribute values and in element text,
+      where the expansion is guaranteed.
+    - Text inside a CDATA section is literal. An entity reference inside
+      CDATA is NOT expanded, it would end up in the script verbatim. The
+      build time placeholders (@@NAME@@, ...) are used there instead.
 
   This single template produces two plugin files:
     - unraid-plugin-docker-model.plg         downloads from GitHub directly
     - unraid-plugin-docker-model-proxy.plg   downloads through the
       gh-proxy.org mirror, for networks that cannot reach github.com
-  Everything else (the plugin name, the install and uninstall scripts, the
-  cached package path and the SHA256) is identical, because both variants
-  install the very same package. Only the plugin URL, the download URL and the
-  source note differ between the two renders.
-
-  Unraid plugin mechanics:
-    - This file lives in /boot/config/plugins/. At boot, /etc/rc.d/rc.local
-      runs `plugin install` on every .plg it finds there, so both <FILE>
-      entries and the install script must be idempotent.
-    - On success /usr/local/sbin/plugin creates a symlink under /var/log/plugins.
-    - Files declared as <FILE Name="..."> are cached under
-      /boot/config/plugins/unraid-plugin-docker-model/ and reused at boot
-      instead of being downloaded again; <SHA256> guards their integrity.
+  Everything else is identical, because both variants install the very same
+  package. Only the pluginURL, the download URL and the source note differ.
+  Install one of them, never both: the installer registers one symlink per
+  .plg file name, so two files would show up as two separate entries in the
+  Plugins tab.
 -->
+<!ENTITY name          "unraid-plugin-docker-model">
+<!ENTITY author        "zhz8888">
+<!ENTITY version       "@@PLUGIN_VERSION@@">
+<!ENTITY upstream      "@@UPSTREAM_VERSION@@">
+<!ENTITY pluginURL     "@@PLG_URL@@">
+<!ENTITY support       "https://github.com/zhz8888/unraid-plugin-docker-model/issues">
+<!ENTITY min           "7.0.0">
+<!ENTITY launch        "Settings/DockerModelRunner">
+<!ENTITY icon          "unraid-plugin-docker-model.png">
+<!ENTITY txzName       "@@TXZ_NAME@@">
+<!ENTITY txzURL        "@@TXZ_URL@@">
+<!ENTITY txzSHA256     "@@TXZ_SHA256@@">
+<!ENTITY binarySHA256  "@@BINARY_SHA256@@">
+<!ENTITY sourceNote    "@@SOURCE_NOTE@@">
+]>
 
 <PLUGIN
-  name="unraid-plugin-docker-model"
-  author="zhz8888"
-  version="@@VERSION@@"
-  pluginURL="@@PLG_URL@@"
-  support="https://github.com/zhz8888/unraid-plugin-docker-model/issues"
-  min="7.0.0"
+  name="&name;"
+  author="&author;"
+  version="&version;"
+  pluginURL="&pluginURL;"
+  support="&support;"
+  min="&min;"
+  launch="&launch;"
+  icon="&icon;"
 >
 
-<CHANGES>
-<![CDATA[
+<CHANGES><![CDATA[##@@PLUGIN_NAME@@
+###@@PLUGIN_VERSION@@
 
-### @@VERSION@@
-
-- First release: brings the Docker Model Runner CLI plugin (`docker model`) to Unraid
-- Binary taken from the official Docker apt artifact `docker-model-plugin_@@VERSION@@`, verified byte for byte via SHA256
-- Once installed, `docker model install-runner` deploys the runner container
-- @@SOURCE_NOTE@@
+- Bundles the Docker Model Runner CLI plugin (docker-model @@UPSTREAM_VERSION@@), taken
+  byte for byte from the official Docker apt artifact and verified against the
+  download.docker.com Packages index.
+- The plugin version is now independent of the bundled upstream version and
+  uses the date based scheme the Unraid installer compares correctly. A
+  repackaging of the same upstream release is therefore offered to installed
+  users as an update.
+- Adds a Settings > Docker Model Runner page that reports the CLI version, the
+  Model Runner state and the locally available models, and can deploy or
+  remove the Model Runner.
+- Cleans up stale copies of the binary from the other Docker CLI plugin
+  directories, which would otherwise shadow the installed one.
+- Removes superseded packages from the flash cache on every install.
+- The install script no longer aborts on a recoverable error. The Unraid
+  installer moves a .plg to /boot/config/plugins-error/ when the install script
+  exits non-zero, which left the plugin unregistered and uninstallable from
+  the WebGUI.
 
 ### Background
 
-Unraid's own docker package (`docker-29.x-x86_64-1_LT`) ships only the buildx and
-compose CLI plugins, not `docker-model`. Docker itself distributes this plugin only
+Unraid's own docker package (docker-29.x-x86_64-1_LT) ships only the buildx and
+compose CLI plugins, not docker-model. Docker itself distributes this plugin only
 through distro package managers and publishes no binary on GitHub Releases.
 This plugin fills that gap.
 
+@@SOURCE_NOTE@@
 ]]>
 </CHANGES>
 
 <!-- ============================================================
-     CLI plugin binary (Slackware txz, installed by upgradepkg)
+     CLI plugin package (Slackware txz, installed by upgradepkg)
      ============================================================ -->
-<FILE Name="/boot/config/plugins/unraid-plugin-docker-model/@@TXZ_NAME@@">
-<URL>@@TXZ_URL@@</URL>
-<SHA256>@@TXZ_SHA256@@</SHA256>
+<FILE Name="/boot/config/plugins/&name;/&txzName;">
+<URL>&txzURL;</URL>
+<SHA256>&txzSHA256;</SHA256>
 </FILE>
 
 <!-- ============================================================
      Install script
      ============================================================ -->
-<FILE Run="/bin/bash">
+<FILE Run="/bin/bash" Method="install">
 <INLINE>
 <![CDATA[
 set -u
 
-PLUGIN_DIR="/boot/config/plugins/unraid-plugin-docker-model"
-TXZ="${PLUGIN_DIR}/@@TXZ_NAME@@"
+PLUGIN_NAME="@@PLUGIN_NAME@@"
+PLUGIN_VERSION="@@PLUGIN_VERSION@@"
+UPSTREAM_VERSION="@@UPSTREAM_VERSION@@"
+CONFIG_DIR="/boot/config/plugins/${PLUGIN_NAME}"
+PACKAGE="${CONFIG_DIR}/@@TXZ_NAME@@"
 CLI_PLUGIN_DIR="/usr/libexec/docker/cli-plugins"
 TARGET="${CLI_PLUGIN_DIR}/docker-model"
+EXPECTED_BINARY_SHA256="@@BINARY_SHA256@@"
 
 echo ""
-echo "======================================================"
-echo " unraid-plugin-docker-model @@VERSION@@"
-echo "======================================================"
-echo ""
+echo "-----------------------------------------------------------"
+echo " Installing ${PLUGIN_NAME} ${PLUGIN_VERSION}"
+echo " docker-model CLI plugin: ${UPSTREAM_VERSION}"
+echo "-----------------------------------------------------------"
 
-# ---- 0. Preflight checks -----------------------------------------
-if [ ! -d "/usr/libexec/docker/cli-plugins" ]; then
-  echo "[!] /usr/libexec/docker/cli-plugins does not exist."
-  echo "    This Unraid/Docker version is probably too old."
-  echo "    This plugin requires Unraid 7.0+."
-  exit 1
+# ---- 0. Drop the mirrored variant -------------------------------------
+# The installer registers one symlink per .plg file name, so a leftover
+# mirrored variant would show up as a second entry in the Plugins tab and
+# would install the same package twice on every boot.
+@@SIBLING_CLEANUP@@
+
+# ---- 1. Preflight -------------------------------------------------------
+if [ ! -d "${CLI_PLUGIN_DIR}" ]; then
+  echo "[!] ${CLI_PLUGIN_DIR} does not exist."
+  echo "    The Docker CLI cannot discover plugins without it."
+  echo "    This plugin requires Unraid 7.0 or newer with Docker installed."
+  echo "    The install is aborted, but the plugin stays registered so that"
+  echo "    it can be removed or updated from the WebGUI."
+  exit 0
 fi
 
-if [ ! -f "${TXZ}" ]; then
-  echo "[!] install package missing: ${TXZ}"
-  exit 1
+if [ ! -f "${PACKAGE}" ]; then
+  echo "[!] The plugin package is missing: ${PACKAGE}"
+  echo "    The Unraid installer should have downloaded it before running"
+  echo "    this script. Check the plugin install log for download errors."
+  exit 0
 fi
 
-# ---- 1. Install the Slackware package ----------------------------
-echo "[1/4] Installing the CLI plugin package..."
-if ! upgradepkg --install-new "${TXZ}" 2>&1; then
+# ---- 2. Install the Slackware package ----------------------------------
+echo "[1/5] Installing the CLI plugin package..."
+if ! upgradepkg --install-new "${PACKAGE}" 2>&1; then
   echo "[!] upgradepkg failed"
-  exit 1
+  echo "    The plugin stays registered so that it can be removed or"
+  echo "    updated from the WebGUI."
+  exit 0
 fi
 
-if [ ! -x "${TARGET}" ]; then
-  echo "[!] executable not found after install: ${TARGET}"
-  exit 1
+if [ ! -f "${TARGET}" ]; then
+  echo "[!] The executable was not found after the install: ${TARGET}"
+  exit 0
 fi
 chmod 0755 "${TARGET}"
 
-# ---- 2. Remove stale copies left on vfat -------------------------
-# /root/.docker is a symlink to /boot/config/plugins/dockerMan (vfat).
-# A plugin placed there loses its execute bits and shadows the system
-# directory, which surfaces as "permission denied". Remove it.
-if [ -e "/root/.docker/cli-plugins/docker-model" ]; then
-  echo "[2/4] Removing the stale copy on vfat..."
-  rm -f "/root/.docker/cli-plugins/docker-model"
-  rmdir "/root/.docker/cli-plugins" 2>/dev/null || true
+# ---- 3. Verify the installed binary -------------------------------------
+echo "[2/5] Verifying the installed binary..."
+if command -v sha256sum >/dev/null 2>&1; then
+  ACTUAL_BINARY_SHA256="$(sha256sum "${TARGET}" | awk '{print $1}')"
+elif command -v shasum >/dev/null 2>&1; then
+  ACTUAL_BINARY_SHA256="$(shasum -a 256 "${TARGET}" | awk '{print $1}')"
 else
-  echo "[2/4] No stale vfat copy found, skipping"
+  ACTUAL_BINARY_SHA256=""
 fi
 
-# ---- 3. Verify that docker recognises the plugin -----------------
-echo "[3/4] Verifying that docker recognises the model subcommand..."
+if [ -z "${ACTUAL_BINARY_SHA256}" ]; then
+  echo "    Skipped: no sha256sum or shasum on this system."
+elif [ "${ACTUAL_BINARY_SHA256}" = "${EXPECTED_BINARY_SHA256}" ]; then
+  echo "      OK: SHA256 matches the upstream artifact"
+else
+  echo "[!] SHA256 mismatch for ${TARGET}"
+  echo "    expected ${EXPECTED_BINARY_SHA256}"
+  echo "    actual   ${ACTUAL_BINARY_SHA256}"
+fi
+
+# ---- 4. Remove shadowing copies ----------------------------------------
+# The Docker CLI looks for plugins in a fixed order and uses the first
+# match:
+#   $HOME/.docker/cli-plugins
+#   /usr/local/lib/docker/cli-plugins
+#   /usr/local/libexec/docker/cli-plugins
+#   /usr/lib/docker/cli-plugins
+#   /usr/libexec/docker/cli-plugins
+# A copy in an earlier directory shadows the installed one. On Unraid
+# /root/.docker is a symlink to /boot/config/plugins/dockerMan (vfat),
+# where the execute bit cannot be set, so such a copy fails with
+# "permission denied". Remove every copy outside the canonical directory.
+echo "[3/5] Removing shadowing copies of the binary..."
+REMOVED=0
+for STALE in \
+  /root/.docker/cli-plugins/docker-model \
+  /usr/local/lib/docker/cli-plugins/docker-model \
+  /usr/local/libexec/docker/cli-plugins/docker-model \
+  /usr/lib/docker/cli-plugins/docker-model
+do
+  if [ -e "${STALE}" ]; then
+    echo "    Removing ${STALE}"
+    rm -f "${STALE}"
+    REMOVED=1
+  fi
+done
+for STALE_DIR in \
+  /root/.docker/cli-plugins \
+  /usr/local/lib/docker/cli-plugins \
+  /usr/local/libexec/docker/cli-plugins
+do
+  rmdir "${STALE_DIR}" 2>/dev/null || true
+done
+if [ "${REMOVED}" -eq 0 ]; then
+  echo "    None found"
+fi
+
+# ---- 5. Clean up superseded packages on the flash device ---------------
+# BusyBox find has no -delete, so use the same glob + grep pattern as the
+# official plugins.
+echo "[4/5] Removing superseded packages from the flash cache..."
+rm -f $(ls "${CONFIG_DIR}"/"${PLUGIN_NAME}"-*.txz 2>/dev/null | grep -v '@@TXZ_NAME@@') 2>/dev/null || true
+
+# ---- 6. Report the result -----------------------------------------------
+echo "[5/5] Checking that docker recognises the model subcommand..."
 if docker model version >/dev/null 2>&1; then
   VER_LINE="$(docker model version 2>/dev/null | tr '\n' ' ' | sed 's/  */ /g')"
   echo "      OK: ${VER_LINE}"
 else
-  echo "[!] docker does not recognise the model subcommand."
+  echo "    The 'docker model' subcommand is not available yet."
   echo "    Debug with: docker info --format '{{json .ClientInfo.Plugins}}'"
-  echo "    Common causes: docker older than 20.10, or ${TARGET} is not executable"
+  echo "    Common causes: Docker older than 20.10, or ${TARGET} is not executable."
 fi
 
-# ---- 4. Next steps -----------------------------------------------
-echo "[4/4] Done"
+echo ""
+echo "  Installed ${PLUGIN_NAME} ${PLUGIN_VERSION} (docker-model ${UPSTREAM_VERSION})."
 echo ""
 echo "  Optional next step: deploy the Model Runner itself"
 echo "    docker model install-runner --gpu none     # CPU only"
@@ -143,6 +265,11 @@ echo "        daemon.json. On restricted networks use the fully qualified"
 echo "        name with a proxy prefix, for example:"
 echo "          docker model pull gh-proxy.org/docker/ai/smollm2:360M-Q4_K_M"
 echo ""
+
+# The install script must never exit non-zero: the Unraid installer would
+# abort, move the .plg to /boot/config/plugins-error/ and leave the plugin
+# unregistered, so the user could not uninstall it from the WebGUI.
+exit 0
 ]]>
 </INLINE>
 </FILE>
@@ -155,15 +282,17 @@ echo ""
 <![CDATA[
 set -u
 
+PLUGIN_NAME="@@PLUGIN_NAME@@"
+CONFIG_DIR="/boot/config/plugins/${PLUGIN_NAME}"
+
 echo ""
-echo "======================================================"
-echo " Removing unraid-plugin-docker-model"
-echo "======================================================"
-echo ""
+echo "-----------------------------------------------------------"
+echo " Removing ${PLUGIN_NAME}"
+echo "-----------------------------------------------------------"
 
 # An interactive runner uninstall would block non-interactive installs,
-# so only the CLI plugin is cleaned up here. The runner container, image
-# and model volume are left for the user to decide on.
+# so only the CLI plugin is cleaned up here. The runner container, the
+# model image and the model volume are left for the user to decide on.
 if docker model status >/dev/null 2>&1; then
   echo "[i] A Model Runner is still running."
   echo "    To clean up completely, run:"
@@ -173,17 +302,26 @@ if docker model status >/dev/null 2>&1; then
   echo ""
 fi
 
-echo "[1/2] Removing the Slackware package..."
-removepkg unraid-plugin-docker-model 2>&1 || true
+echo "[1/3] Removing the Slackware package..."
+removepkg "${PLUGIN_NAME}" 2>&1 || true
 
-echo "[2/2] Cleaning up leftovers..."
+echo "[2/3] Cleaning up leftovers..."
 rm -f /usr/libexec/docker/cli-plugins/docker-model
-rm -f /root/.docker/cli-plugins/docker-model 2>/dev/null || true
-rm -f /boot/config/plugins/unraid-plugin-docker-model/*.txz 2>/dev/null || true
+rm -f /root/.docker/cli-plugins/docker-model
+rm -f /usr/local/lib/docker/cli-plugins/docker-model
+rm -f /usr/local/libexec/docker/cli-plugins/docker-model
+rm -f /usr/lib/docker/cli-plugins/docker-model
+rm -rf /usr/local/emhttp/plugins/"${PLUGIN_NAME}"
+
+echo "[3/3] Cleaning up the flash cache..."
+rm -f "${CONFIG_DIR}"/*.txz 2>/dev/null || true
+rmdir "${CONFIG_DIR}" 2>/dev/null || true
 
 echo ""
-echo "unraid-plugin-docker-model has been removed."
+echo "${PLUGIN_NAME} has been removed."
 echo ""
+
+exit 0
 ]]>
 </INLINE>
 </FILE>

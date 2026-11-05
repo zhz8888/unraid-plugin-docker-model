@@ -2,6 +2,9 @@
 pkg/
 dist/
 
+# Research notes gathered while working on the plugin; local only
+.research/
+
 # Temporary files
 *.tmp
 *.part

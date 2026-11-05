@@ -1,0 +1,34 @@
+{
+    "title": "Docker Model Runner",
+    "commands": [
+        {
+            "command": "docker model version",
+            "file": "docker-model-version.txt"
+        },
+        {
+            "command": "docker model status",
+            "file": "docker-model-status.txt"
+        },
+        {
+            "command": "docker model list",
+            "file": "docker-model-list.txt"
+        },
+        {
+            "command": "ls -l /usr/libexec/docker/cli-plugins/",
+            "file": "cli-plugins.txt"
+        },
+        {
+            "command": "ls -l /boot/config/plugins/unraid-plugin-docker-model/",
+            "file": "flash-cache.txt"
+        },
+        {
+            "command": "docker ps --filter name=docker-model-runner",
+            "file": "docker-model-runner-container.txt"
+        }
+    ],
+    "files": [
+        "/boot/config/plugins/unraid-plugin-docker-model/",
+        "/var/log/docker-model-runner-install.log"
+    ],
+    "system_diagnostics": true
+}

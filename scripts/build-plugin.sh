@@ -10,15 +10,27 @@
 #   3. Parse the ar container (Python path + pure shell fallback, because
 #      Unraid ships neither ar nor dpkg-deb)
 #   4. Extract usr/libexec/docker/cli-plugins/docker-model from data.tar.xz
-#   5. Pack a Slackware txz (with install/slack-desc, required by upgradepkg)
+#   5. Assemble the Slackware package from src/ plus the binary, and pack it
+#      as a txz (install/slack-desc and install/doinst.sh are required by
+#      upgradepkg)
 #   6. Render two .plg files from one template, with the txz SHA256 baked in:
 #      a direct one and one that downloads through the gh-proxy.org mirror
 #
 # Usage:
 #   ./scripts/build-plugin.sh
+#   PLUGIN_VERSION=2026.11.05.1200 ./scripts/build-plugin.sh
 #   DMR_VERSION=1.2.9 ./scripts/build-plugin.sh
 #   DMR_ARCH=arm64 ./scripts/build-plugin.sh
 #   DMR_UBUNTU=noble ./scripts/build-plugin.sh
+#
+# Version scheme:
+#   PLUGIN_VERSION  the version of this plugin, date based (YYYY.MM.DD.HHMM).
+#                   The Unraid installer compares it to decide whether an
+#                   update has to be applied, so it must increase on every
+#                   release and must not be tied to the upstream version.
+#   DMR_VERSION     the version of the upstream docker-model-plugin release
+#                   that is bundled. Recorded in the package description, the
+#                   changelog and the WebGUI page.
 #
 set -euo pipefail
 
@@ -27,8 +39,13 @@ DMR_VERSION="${DMR_VERSION:-1.2.9}"
 DMR_ARCH="${DMR_ARCH:-amd64}"          # amd64 | arm64 | armhf
 DMR_UBUNTU="${DMR_UBUNTU:-noble}"      # 22.04=jammy 24.04=noble
 
+# The plugin version. Defaults to the current UTC timestamp, which is the
+# scheme the official Limetech plugins use. Pin it explicitly for a
+# reproducible build.
+PLUGIN_VERSION="${PLUGIN_VERSION:-$(date -u +%Y.%m.%d.%H%M)}"
+
 # Unraid plugin name (also used as the .plg filename, the flash cache
-# directory name, and the Slackware package name prefix)
+# directory name, and the Slackware package name)
 PLUGIN_NAME="unraid-plugin-docker-model"
 
 # Repository the release assets are published under. The direct .plg and the
@@ -45,10 +62,11 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PKG_DIR="${REPO_ROOT}/pkg"
 DIST_DIR="${REPO_ROOT}/dist"
 WORK_DIR="${PKG_DIR}/work"
+SRC_DIR="${REPO_ROOT}/src"
 
 # Slackware package naming: <name>-<version>-<arch>-<build>
 SLACK_ARCH="$([ "${DMR_ARCH}" = "amd64" ] && echo "x86_64" || echo "${DMR_ARCH}")"
-TXZ_NAME="${PLUGIN_NAME}-${DMR_VERSION}-${SLACK_ARCH}-1.txz"
+TXZ_NAME="${PLUGIN_NAME}-${PLUGIN_VERSION}-${SLACK_ARCH}-1.txz"
 
 # The upstream deb name is kept as-is: it is Docker's official artifact name
 DEB_NAME="docker-model-plugin_${DMR_VERSION}-1~ubuntu.24.04~${DMR_UBUNTU}_${DMR_ARCH}.deb"
@@ -68,19 +86,43 @@ sha256_of() {
 
 need() { command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"; }
 
+# Download a URL with an explicit retry loop.
+#
+# curl's own --retry only covers transient HTTP errors and timeouts, so a TLS
+# handshake failure aborts the build on the first attempt. The loop makes the
+# build survive the occasional flaky connection.
+#
+#   fetch <url> <output> <max-time> [attempts]
+fetch() {
+  local url="$1" out="$2" max_time="$3" attempts="${4:-4}" attempt=1
+
+  while true; do
+    if curl -fsSL --retry 2 --max-time "${max_time}" "$url" -o "${out}"; then
+      return 0
+    fi
+    if [ "${attempt}" -ge "${attempts}" ]; then
+      return 1
+    fi
+    attempt=$((attempt + 1))
+    warn "download failed, retrying in 3s (attempt ${attempt}/${attempts})"
+    sleep 3
+  done
+}
+
 need curl
 need tar
 need xz
+need python3
 
 mkdir -p "${PKG_DIR}" "${DIST_DIR}" "${WORK_DIR}"
 
-log "target version: ${DMR_VERSION}  arch: ${DMR_ARCH}  ubuntu base: ${DMR_UBUNTU}"
+log "plugin version: ${PLUGIN_VERSION}  upstream: ${DMR_VERSION}  arch: ${DMR_ARCH}  ubuntu base: ${DMR_UBUNTU}"
 
 # ---------------------------------------------------------------- 1. apt metadata
 log "fetching the apt Packages index..."
 PACKAGES_URL="${APT_BASE}/${APT_DIST}/Packages"
 PKG_INDEX="${WORK_DIR}/Packages"
-curl -fsSL --retry 3 --max-time 120 "${PACKAGES_URL}" -o "${PKG_INDEX}" \
+fetch "${PACKAGES_URL}" "${PKG_INDEX}" 120 \
   || die "failed to download the Packages index: ${PACKAGES_URL}"
 
 # Pull the (Filename, Size, SHA256) triple for the requested version.
@@ -115,7 +157,7 @@ if [ -f "${DEB_PATH}" ] && [ "$(sha256_of "${DEB_PATH}")" = "${APT_SHA256}" ]; t
   log "reusing cached deb (SHA256 already verified): ${DEB_NAME}"
 else
   log "downloading ${DEB_NAME} ..."
-  curl -fsSL --retry 3 --max-time 300 "${DEB_URL}" -o "${DEB_PATH}.part" \
+  fetch "${DEB_URL}" "${DEB_PATH}.part" 300 \
     || die "download failed: ${DEB_URL}"
   mv "${DEB_PATH}.part" "${DEB_PATH}"
 fi
@@ -134,8 +176,7 @@ rm -rf "${EXTRACT_DIR}"
 mkdir -p "${EXTRACT_DIR}"
 
 log "parsing the ar container and extracting data.tar.xz ..."
-if command -v python3 >/dev/null 2>&1; then
-  python3 - "${DEB_PATH}" "${EXTRACT_DIR}" <<'PY'
+python3 - "${DEB_PATH}" "${EXTRACT_DIR}" <<'PY'
 import sys, os
 deb, outdir = sys.argv[1], sys.argv[2]
 data = open(deb, 'rb').read()
@@ -161,24 +202,6 @@ for key in ('data.tar.xz', 'data.tar.gz', 'data.tar'):
 else:
     sys.exit('no data.tar.* member found')
 PY
-else
-  warn "python3 not found, falling back to pure shell parsing (data.tar.xz only, fixed offsets)"
-  # The ar header is always 60 bytes; walk the members with dd
-  OFFSET=8
-  TOTAL=$(wc -c < "${DEB_PATH}" | tr -d ' ')
-  FOUND=""
-  while [ "${OFFSET}" -lt "${TOTAL}" ]; do
-    NAME=$(dd if="${DEB_PATH}" bs=1 skip="${OFFSET}" count=16 2>/dev/null | tr -d ' \0' | sed 's#/$##')
-    SIZE=$(dd if="${DEB_PATH}" bs=1 skip=$((OFFSET + 48)) count=10 2>/dev/null | tr -d ' ')
-    case "${SIZE}" in ''|*[!0-9]*) break;; esac
-    if [ "${NAME}" = "data.tar.xz" ]; then
-      dd if="${DEB_PATH}" bs=1 skip=$((OFFSET + 60)) count="${SIZE}" of="${EXTRACT_DIR}/data.tar.xz" 2>/dev/null
-      FOUND="data.tar.xz"; break
-    fi
-    OFFSET=$((OFFSET + 60 + SIZE + (SIZE % 2)))
-  done
-  [ -n "${FOUND}" ] || die "pure shell parsing found no data.tar.xz"
-fi
 
 DATA_TAR="$(ls "${EXTRACT_DIR}"/data.tar.* 2>/dev/null | head -1)"
 [ -n "${DATA_TAR}" ] || die "unpack failed: no data.tar.* produced"
@@ -189,31 +212,59 @@ BIN_PATH="${EXTRACT_DIR}/usr/libexec/docker/cli-plugins/docker-model"
 
 chmod 0755 "${BIN_PATH}"
 BIN_SIZE=$(wc -c < "${BIN_PATH}" | tr -d ' ')
-log "extracted binary: ${BIN_SIZE} bytes"
+BIN_SHA256="$(sha256_of "${BIN_PATH}")"
+log "extracted binary: ${BIN_SIZE} bytes  SHA256=${BIN_SHA256:0:16}..."
 
-# ---------------------------------------------------------------- 4. pack the Slackware txz
+# ---------------------------------------------------------------- 4. assemble the Slackware package
 STAGE="${WORK_DIR}/stage"
 rm -rf "${STAGE}"
-mkdir -p "${STAGE}/usr/libexec/docker/cli-plugins" "${STAGE}/install"
+mkdir -p "${STAGE}"
+
+# The package source tree holds everything that is not the upstream binary:
+# the WebGUI page, the package description and the install hook.
+[ -d "${SRC_DIR}" ] || die "package source tree not found: ${SRC_DIR}"
+tar -cf - -C "${SRC_DIR}" . | tar -xf - -C "${STAGE}"
+[ -f "${STAGE}/install/slack-desc" ] || die "install/slack-desc is missing from ${SRC_DIR}"
+[ -f "${STAGE}/install/doinst.sh" ] || die "install/doinst.sh is missing from ${SRC_DIR}"
+chmod 0755 "${STAGE}/install/doinst.sh"
+
+# The upstream binary keeps its original name: the Docker CLI discovers
+# plugins by the docker-<subcommand> filename convention.
+mkdir -p "${STAGE}/usr/libexec/docker/cli-plugins"
 cp "${BIN_PATH}" "${STAGE}/usr/libexec/docker/cli-plugins/docker-model"
 chmod 0755 "${STAGE}/usr/libexec/docker/cli-plugins/docker-model"
 
-cat > "${STAGE}/install/slack-desc" <<EOF
-# HOW TO EDIT THIS FILE:
-# The "handy ruler" below makes it easier to edit a package description.
-${PLUGIN_NAME}: ${PLUGIN_NAME} (Docker Model Runner CLI plugin for Unraid)
-${PLUGIN_NAME}:
-${PLUGIN_NAME}: Provides the 'docker model' subcommand for the Docker CLI.
-${PLUGIN_NAME}: Docker Model Runner lets you pull and run AI models locally
-${PLUGIN_NAME}: and serve them via OpenAI- and Ollama-compatible APIs.
-${PLUGIN_NAME}:
-${PLUGIN_NAME}: Upstream: https://github.com/docker/model-runner
-${PLUGIN_NAME}: Packaged from the official Docker apt artifact.
-${PLUGIN_NAME}:
-${PLUGIN_NAME}:
+# Build metadata for the WebGUI page. It is generated here so that it always
+# matches the package it ships with.
+PLUGIN_DIR_REL="usr/local/emhttp/plugins/${PLUGIN_NAME}"
+mkdir -p "${STAGE}/${PLUGIN_DIR_REL}"
+cat > "${STAGE}/${PLUGIN_DIR_REL}/plugin.info" <<EOF
+; Generated by scripts/build-plugin.sh -- do not edit.
+PLUGIN_NAME=${PLUGIN_NAME}
+PLUGIN_VERSION=${PLUGIN_VERSION}
+UPSTREAM_VERSION=${DMR_VERSION}
+UPSTREAM_SOURCE=${DEB_NAME}
+BINARY_SHA256=${BIN_SHA256}
 EOF
 
+# The page description mentions the bundled upstream version.
+if [ -f "${STAGE}/${PLUGIN_DIR_REL}/README.md" ]; then
+  python3 - "${STAGE}/${PLUGIN_DIR_REL}/README.md" "${PLUGIN_VERSION}" "${DMR_VERSION}" <<'PY'
+import sys
+path, plugin_version, upstream_version = sys.argv[1], sys.argv[2], sys.argv[3]
+text = open(path, encoding='utf-8').read()
+text = text.replace('@@PLUGIN_VERSION@@', plugin_version)
+text = text.replace('@@UPSTREAM_VERSION@@', upstream_version)
+open(path, 'w', encoding='utf-8').write(text)
+PY
+fi
+
 log "packing ${TXZ_NAME} ..."
+
+# Drop packages of previous builds so that dist/ only ever holds the
+# artifacts of the current version. This runs after the build succeeded, so
+# a failed build never destroys the artifacts of the previous one.
+rm -f "${DIST_DIR}/${PLUGIN_NAME}-"*.txz 2>/dev/null || true
 
 # ---- Reproducible build -------------------------------------------------
 # The archive must be byte-identical on every platform, not merely repeatable
@@ -283,7 +334,7 @@ def make_tarinfo(rel, realpath):
         ti.size = 0
     else:
         ti.type = tarfile.REGTYPE
-        # preserve the executable bit, drop everything else
+        # keep the executable bit for scripts and binaries, drop the rest
         ti.mode = 0o755 if st.st_mode & 0o111 else 0o644
         ti.size = st.st_size
     return ti
@@ -328,7 +379,7 @@ PLG_TEMPLATE="${REPO_ROOT}/plugin/${PLUGIN_NAME}.plg.in"
 [ -f "${PLG_TEMPLATE}" ] || die "template not found: ${PLG_TEMPLATE}"
 
 RELEASE_BASE="https://github.com/${REPO_SLUG}/releases"
-DIRECT_TXZ_URL="${RELEASE_BASE}/download/${DMR_VERSION}/${TXZ_NAME}"
+DIRECT_TXZ_URL="${RELEASE_BASE}/download/${PLUGIN_VERSION}/${TXZ_NAME}"
 DIRECT_PLG_URL="${RELEASE_BASE}/latest/download/${PLUGIN_NAME}.plg"
 PROXY_TXZ_URL="${GH_PROXY}${DIRECT_TXZ_URL}"
 PROXY_PLG_URL="${GH_PROXY}${RELEASE_BASE}/latest/download/${PLUGIN_NAME}-proxy.plg"
@@ -336,25 +387,24 @@ PROXY_PLG_URL="${GH_PROXY}${RELEASE_BASE}/latest/download/${PLUGIN_NAME}-proxy.p
 # Substitute placeholders with python to avoid sed -i differences
 # between BSD and GNU userlands
 render_plg() {
-  local out="$1" plg_url="$2" txz_url="$3" note="$4"
+  local out="$1" plg_url="$2" txz_url="$3" note="$4" sibling_cleanup="$5"
   python3 - "${PLG_TEMPLATE}" "${out}" \
-    "${DMR_VERSION}" "${TXZ_NAME}" "${TXZ_SHA256}" "${TXZ_SIZE}" "${SLACK_ARCH}" \
-    "${PLUGIN_NAME}" "${plg_url}" "${txz_url}" "${note}" <<'PY'
+    "${PLUGIN_VERSION}" "${DMR_VERSION}" "${TXZ_NAME}" "${TXZ_SHA256}" "${BIN_SHA256}" \
+    "${plg_url}" "${txz_url}" "${note}" "${sibling_cleanup}" <<'PY'
 import sys
-tmpl, out, ver, txz, sha, size, arch, name, plg_url, txz_url, note = sys.argv[1:12]
+tmpl, out, plugin_version, upstream_version, txz, sha, binary_sha, plg_url, txz_url, note, sibling_cleanup = sys.argv[1:12]
 text = open(tmpl, encoding='utf-8').read()
 repl = {
-    '@@VERSION@@': ver,
+    '@@PLUGIN_NAME@@': 'unraid-plugin-docker-model',
+    '@@PLUGIN_VERSION@@': plugin_version,
+    '@@UPSTREAM_VERSION@@': upstream_version,
     '@@TXZ_NAME@@': txz,
     '@@TXZ_SHA256@@': sha,
+    '@@BINARY_SHA256@@': binary_sha,
     '@@PLG_URL@@': plg_url,
     '@@TXZ_URL@@': txz_url,
     '@@SOURCE_NOTE@@': note,
-    # Not referenced by the current template, but kept available so a
-    # template can use them without touching the build script.
-    '@@TXZ_SIZE@@': size,
-    '@@ARCH@@': arch,
-    '@@PLUGIN_NAME@@': name,
+    '@@SIBLING_CLEANUP@@': sibling_cleanup,
 }
 for k, v in repl.items():
     text = text.replace(k, v)
@@ -363,13 +413,25 @@ print('written', out)
 PY
 }
 
+# The canonical variant removes the mirrored one. The installer registers one
+# symlink per .plg file name, so both files being present would show up as
+# two entries in the Plugins tab and would install the same package twice on
+# every boot. The mirrored variant does not remove the canonical one: the
+# canonical variant sorts later, so it is always the one that wins.
+SIBLING_CLEANUP="rm -f /boot/config/plugins/${PLUGIN_NAME}-proxy.plg
+rm -f /var/log/plugins/${PLUGIN_NAME}-proxy.plg"
+
 render_plg "${DIST_DIR}/${PLUGIN_NAME}.plg" \
   "${DIRECT_PLG_URL}" "${DIRECT_TXZ_URL}" \
-  "The plugin package is downloaded from the GitHub Release assets directly."
+  "The plugin package is downloaded from the GitHub Release assets directly." \
+  "${SIBLING_CLEANUP}"
 
 render_plg "${DIST_DIR}/${PLUGIN_NAME}-proxy.plg" \
   "${PROXY_PLG_URL}" "${PROXY_TXZ_URL}" \
-  "The plugin package is downloaded from the GitHub Release assets through the gh-proxy.org mirror, for networks that cannot reach github.com directly."
+  "The plugin package is downloaded from the GitHub Release assets through the gh-proxy.org mirror, for networks that cannot reach github.com directly." \
+  "# The mirrored variant keeps the canonical one in place: only one of the
+# two .plg files may be installed, and the canonical one removes this file
+# on the next boot if both are present."
 
 log "done"
 echo

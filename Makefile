@@ -2,24 +2,34 @@
 SHELL := /bin/bash
 
 PLUGIN_NAME := unraid-plugin-docker-model
+
+# Version of this plugin. Date based, the same scheme the official Limetech
+# plugins use. The Unraid installer compares it to decide whether an update
+# has to be applied, so it must increase on every release. Pin it to keep a
+# build reproducible.
+PLUGIN_VERSION ?= $(shell date -u +%Y.%m.%d.%H%M)
+
+# Version of the upstream docker-model-plugin release that is bundled.
 DMR_VERSION ?= 1.2.9
 DMR_ARCH    ?= amd64
 
 DIST_DIR := dist
-TXZ      := $(DIST_DIR)/$(PLUGIN_NAME)-$(DMR_VERSION)-$(if $(filter amd64,$(DMR_ARCH)),x86_64,$(DMR_ARCH))-1.txz
+TXZ      := $(DIST_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-$(if $(filter amd64,$(DMR_ARCH)),x86_64,$(DMR_ARCH))-1.txz
 PLG      := $(DIST_DIR)/$(PLUGIN_NAME).plg
+ICON     := src/usr/local/emhttp/plugins/$(PLUGIN_NAME)/$(PLUGIN_NAME).png
 
-.PHONY: all build lint verify fetch clean distclean release help
+.PHONY: all build lint verify fetch icon clean distclean release help
 
 all: build lint verify
 
 ## build: download, verify and package the plugin
 build:
-	DMR_VERSION=$(DMR_VERSION) DMR_ARCH=$(DMR_ARCH) ./scripts/build-plugin.sh
+	PLUGIN_VERSION=$(PLUGIN_VERSION) DMR_VERSION=$(DMR_VERSION) DMR_ARCH=$(DMR_ARCH) ./scripts/build-plugin.sh
 
-## lint: static checks on the generated .plg
+## lint: static checks on the generated .plg and on the WebGUI sources
 lint:
 	./scripts/lint-plg.sh
+	./scripts/check-php-syntax.py src/
 
 ## verify: verify artifact hashes and layout
 verify:
@@ -29,16 +39,21 @@ verify:
 fetch:
 	DMR_VERSION=$(DMR_VERSION) DMR_ARCH=$(DMR_ARCH) ./scripts/fetch-plugin.sh
 
+## icon: regenerate the plugin icon
+icon:
+	python3 scripts/make-icon.py $(ICON)
+
 ## release: print the gh command to publish the current build
 release: build lint verify
 	@echo
 	@echo "Artifacts ready:"
 	@echo "  $(TXZ)"
 	@echo "  $(PLG)"
+	@echo "  $(DIST_DIR)/$(PLUGIN_NAME)-proxy.plg"
 	@echo
 	@echo "Publish with:"
-	@echo "  gh release create $(DMR_VERSION) $(TXZ) \\"
-	@echo "    --title \"$(PLUGIN_NAME) $(DMR_VERSION)\" \\"
+	@echo "  gh release create $(PLUGIN_VERSION) $(TXZ) \\"
+	@echo "    --title \"$(PLUGIN_NAME) $(PLUGIN_VERSION)\" \\"
 	@echo "    --notes \"See CHANGELOG.md\""
 
 ## clean: remove build intermediates

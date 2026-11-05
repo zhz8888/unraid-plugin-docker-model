@@ -1,0 +1,16 @@
+# HOW TO EDIT THIS FILE:
+# The "handy ruler" below makes it easier to edit a package description.
+# The right column is a ruler, so every line of the description lines up.
+#                                       .
+# unraid-plugin-docker-model: Docker Model Runner CLI plugin for Unraid
+# unraid-plugin-docker-model:
+# unraid-plugin-docker-model: Provides the 'docker model' subcommand for the
+# unraid-plugin-docker-model: Docker CLI, so models can be pulled, run and
+# unraid-plugin-docker-model: served locally through an OpenAI- or
+# unraid-plugin-docker-model: Ollama-compatible API.
+# unraid-plugin-docker-model:
+# unraid-plugin-docker-model: Upstream: https://github.com/docker/model-runner
+# unraid-plugin-docker-model: Packaged from the official Docker apt artifact,
+# unraid-plugin-docker-model: redistributed unmodified.
+# unraid-plugin-docker-model:
+# unraid-plugin-docker-model:

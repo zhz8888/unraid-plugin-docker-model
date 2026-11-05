@@ -8,8 +8,11 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      version:
-        description: 'docker-model-plugin version to build'
+      plugin_version:
+        description: 'Plugin version (YYYY.MM.DD.HHMM); defaults to a fixed value'
+        required: false
+      upstream_version:
+        description: 'docker-model-plugin version to bundle'
         required: false
         default: '1.2.9'
 
@@ -20,6 +23,12 @@ jobs:
   verify:
     name: Build and verify
     runs-on: ubuntu-latest
+    env:
+      # A fixed plugin version keeps the build reproducible: the version is
+      # part of the package name, so a moving timestamp would change the
+      # artifact between the builds that are compared below.
+      PLUGIN_VERSION: ${{ github.event.inputs.plugin_version || '2026.01.01.0000' }}
+      UPSTREAM_VERSION: ${{ github.event.inputs.upstream_version || '1.2.9' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,10 +40,13 @@ jobs:
       - name: Build the plugin
         run: ./scripts/build-plugin.sh
         env:
-          DMR_VERSION: ${{ github.event.inputs.version || '1.2.9' }}
+          DMR_VERSION: ${{ env.UPSTREAM_VERSION }}
 
       - name: Lint the generated .plg
         run: ./scripts/lint-plg.sh
+
+      - name: Check the WebGUI sources
+        run: ./scripts/check-php-syntax.py src/
 
       - name: Verify artifacts
         run: ./scripts/verify-release.sh
@@ -80,6 +92,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      # The tag is the plugin version. The .plg points at the release asset
+      # under the same tag, so both have to agree.
+      PLUGIN_VERSION: ${{ github.ref_name }}
+      UPSTREAM_VERSION: ${{ github.event.inputs.upstream_version || '1.2.9' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -91,7 +108,7 @@ jobs:
       - name: Build with the tag version
         run: ./scripts/build-plugin.sh
         env:
-          DMR_VERSION: ${{ github.ref_name }}
+          DMR_VERSION: ${{ env.UPSTREAM_VERSION }}
 
       - name: Publish release
         uses: softprops/action-gh-release@v2

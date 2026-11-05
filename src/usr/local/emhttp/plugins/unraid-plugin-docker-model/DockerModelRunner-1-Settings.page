@@ -1,0 +1,15 @@
+Menu="DockerModelRunner"
+Icon="unraid-plugin-docker-model.png"
+Title="Settings"
+Type="xmenu"
+Tag="gears"
+Markdown="false"
+---
+<?php
+try {
+    $docroot = $docroot ?? ($_SERVER['DOCUMENT_ROOT'] ?: '/usr/local/emhttp');
+    require_once "{$docroot}/plugins/unraid-plugin-docker-model/include/Pages/Settings.php";
+} catch (Throwable $e) {
+    echo "An error occurred: <pre>" . htmlspecialchars(print_r($e, true), ENT_QUOTES) . "</pre>";
+}
+?>
