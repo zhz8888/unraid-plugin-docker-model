@@ -15,7 +15,7 @@
 | P6 | 对齐 Unraid 官方插件规范 | ✅ 完成（见 `docs/05-unraid-plugin-conventions.md`） |
 | 文档 | `docs/03` 按最终构建方案回填实测哈希 | ⬜ 待办 |
 
-> 最近一次核对：**2026-11-05**。P2 的完成状态基于已发布的 Release 1.2.9 实测校验，
+> 最近一次核对：**2026-11-05**。P2 的完成状态基于已发布的 Release 20261027 实测校验，
 > 而非仅凭提交记录推断。
 
 ---
@@ -32,10 +32,10 @@
 | 实测记录 | `docs/03-verification-log.md` | 真实 Unraid 主机上的实测数据 |
 | CI | `.github/workflows/build.yml` | 每次 push 构建 + lint + verify + 复现性断言 |
 
-1.2.9 发布产物的 SHA256（Linux CI 与 macOS 本地产物一致）：
+20261027 发布产物的 SHA256（Linux CI 与 macOS 本地产物一致）：
 
 ```
-0d545fb9e7e2f098b79d249757e5b839ebddaa981b493ee3f6b84c115d43e905  unraid-plugin-docker-model-1.2.9-x86_64-1.txz
+0d545fb9e7e2f098b79d249757e5b839ebddaa981b493ee3f6b84c115d43e905  unraid-plugin-docker-model-20261027-x86_64-1.txz
 ```
 
 > 早期用 `tar` 打包时，GNU tar（Linux/CI）与 bsdtar（macOS）写出的头部字段不同、
@@ -48,10 +48,10 @@
 
 **已完成**（2026-10-26 首次发布；2026-10-27 重新发版，补上代理版插件文件）：
 
-1. ✅ 打 tag 并推送：`refs/tags/1.2.9` → `701429a`（本次发版提交），已推送到 origin
+1. ✅ 打 tag 并推送：`refs/tags/20261027` → `701429a`（本次发版提交），已推送到 origin
 2. ✅ CI（`.github/workflows/build.yml`）自动构建并附加产物，Release 由 `github-actions[bot]` 创建
-3. ✅ Release 1.2.9 含三个资产：
-   - `unraid-plugin-docker-model-1.2.9-x86_64-1.txz`
+3. ✅ Release 20261027 含三个资产：
+   - `unraid-plugin-docker-model-20261027-x86_64-1.txz`
    - `unraid-plugin-docker-model.plg`（直连版）
    - `unraid-plugin-docker-model-proxy.plg`（经 `https://gh-proxy.org/` 代理）
 4. ✅ `pluginURL`（`releases/latest/download/unraid-plugin-docker-model.plg`）返回 HTTP 200
@@ -66,14 +66,18 @@ $ ./scripts/verify-release.sh \
 ```
 
 > 发版版本号跟随上游 `docker-model-plugin`，因此上游未发新版本前无法用新版本号发版；
-> 补齐代理版时只能重新发布同一个 `1.2.9`，tag 前移到包含新插件文件的提交。
-> 插件的 `version` 属性也随之保持 `1.2.9`，所以**已安装的用户不会收到更新提示**——
+> 补齐代理版时只能重新发布同一个版本，tag 前移到包含新插件文件的提交。
+> 插件的 `version` 属性也随之保持不变，所以**已安装的用户不会收到更新提示**——
 > 代理版面向的是新装机的中国大陆用户。
 >
-> ⚠️ **该问题已在 2026-11-05 修复**：插件版本改为日期式 `YYYY.MM.DD.HHMM`，
-> 与上游版本解耦。更关键的是，Unraid 安装器用 `strcmp()` 比较插件版本，
-> 原来的 `1.2.9` 方案在上游发布 `1.2.10` 时会被判定为**更旧**而拒绝安装。
-> 详见 `docs/05-unraid-plugin-conventions.md`。
+> ⚠️ **该问题已在 2026-11-05 修复**：插件版本改为发布日期式 `YYYYMMDD`
+> （同日多次发布用 `.a`/`.b` 后缀），与上游版本解耦。更关键的是，Unraid 安装器用
+> `strcmp()` 比较插件版本，原来的 `1.2.9` 方案在上游发布 `1.2.10` 时会被判定为
+> **更旧**而拒绝安装。详见 `docs/05-unraid-plugin-conventions.md`。
+>
+> 该版本最初以 `1.2.9` 为 tag 发布，2026-11-05 按新的版本规则改名为 `20261027`
+> （发布日）。tag 指向的提交没有变，`txz` 内容也没有变，只是文件名与 `.plg` 里的
+> 版本号改了。远端 tag 与 Release 资产需要同步更新，见下面「版本号规则」。
 
 > 生成的 `.plg` 是构建产物（`dist/` 被 gitignore），因此通过 Release 资产分发，
 > 不提交进仓库。`pluginURL` 与下载链接都使用 GitHub 的
@@ -88,12 +92,91 @@ $ ./scripts/verify-release.sh \
 ```bash
 # 发布命令（示例）
 make build lint verify
-gh release create 1.2.9 dist/unraid-plugin-docker-model-1.2.9-x86_64-1.txz \
-  --title "unraid-plugin-docker-model 1.2.9" \
+gh release create 20261105 dist/unraid-plugin-docker-model-20261105-x86_64-1.txz \
+  --title "unraid-plugin-docker-model 20261105" \
   --notes-file CHANGELOG.md
 ```
 
 **发布后必须跑 `scripts/verify-release.sh <plg-url>`** 确认线上 SHA256 与本地一致。
+
+---
+
+## 版本号规则
+
+**插件版本 = 发布日期 `YYYYMMDD`。** 同一天发布多次时，第二个版本起追加字母后缀：
+
+```
+20261105      当天的第一个版本
+20261105.a    当天的第二个版本
+20261105.b    当天的第三个版本
+20261106      第二天
+```
+
+规则固化在以下位置，改动时必须同步：
+
+| 位置 | 作用 |
+|---|---|
+| `scripts/build-plugin.sh` | 默认取本地日期 `date +%Y%m%d`；不匹配 `^[0-9]{8}(\.[a-z])?$` 直接报错退出 |
+| `scripts/lint-plg.sh` | 校验生成的 `.plg` 的 `version` 属性符合该格式 |
+| `Makefile` | `PLUGIN_VERSION ?= $(shell date +%Y%m%d)` |
+| `.github/workflows/build.yml` | 构建与复现性检查固定 `PLUGIN_VERSION`；发版 job 用 git tag |
+| `CONTRIBUTING.md`、`README.md`、`README.zh-CN.md`、`docs/02`、`docs/05` | 规则说明 |
+
+**为什么必须这么排**：Unraid 安装器用 `strcmp()` 比较插件版本，即按字节比较字符串。
+这套格式在字节序下正好等于发布顺序：
+
+```
+20261105 < 20261105.a < 20261105.b < 20261106
+```
+
+`20261105` 是 `20261105.a` 的前缀，短者在前；`.` 的字节值 0x2E 小于数字字符，所以
+`20261105.z` 仍然小于 `20261106`。语义化版本做不到这点——`1.2.10` 排在 `1.2.9`
+**之后**，Unraid 会拒绝这次升级。
+
+**插件版本与上游版本解耦**：上游 `docker-model-plugin` 的版本号另行记录在
+更新日志、包描述与 WebGUI 页面里。同一个上游版本的重新打包也要发新版本号，
+否则已安装的用户收不到更新提示。
+
+### 历史版本的改名
+
+首个版本最初以 `1.2.9` 为 tag 发布（因为当时插件版本直接跟随上游版本号）。
+按新规则改名为发布日 `20261027`：
+
+- git tag：`refs/tags/1.2.9` → `refs/tags/20261027`，**指向同一个提交**（`701429a`），
+  tagger 与日期保持不变
+- 资产文件名：`unraid-plugin-docker-model-1.2.9-x86_64-1.txz`
+  → `unraid-plugin-docker-model-20261027-x86_64-1.txz`（**内容不变**，SHA256 不变）
+- `.plg` 里的四处替换：
+
+  | 位置 | 改动 |
+  |---|---|
+  | `<PLUGIN version="...">` | `1.2.9` → `20261027` |
+  | `<FILE Name="...">` | 缓存的包名换成新文件名 |
+  | `<URL>` | `/releases/download/1.2.9/` → `/releases/download/20261027/` |
+  | `<CHANGES>` 里的 `### 1.2.9` | 改成 `### 20261027` |
+
+  ⚠️ 更新日志里 `docker-model-plugin_1.2.9` 那一行是**上游版本**，不能跟着改。
+
+改名后的资产已生成在 `dist/reissue-20261027/`（`dist/` 被 gitignore，属本地产物）。
+`txz` 逐字节复现了已发布产物，SHA256 仍是
+`0d545fb9e7e2f098b79d249757e5b839ebddaa981b493ee3f6b84c115d43e905`。
+
+远端需要同步执行：
+
+```bash
+# 删除旧 tag，推送新 tag
+git push origin :refs/tags/1.2.9
+git push origin refs/tags/20261027
+
+# 用改名后的资产覆盖 Release
+gh release upload 20261027 \
+  dist/reissue-20261027/unraid-plugin-docker-model-20261027-x86_64-1.txz \
+  dist/reissue-20261027/unraid-plugin-docker-model.plg \
+  dist/reissue-20261027/unraid-plugin-docker-model-proxy.plg --clobber
+
+# 把 Release 的标题与 tag 一起改名
+gh release edit 20261027 --tag 20261027 --title "unraid-plugin-docker-model 20261027"
+```
 
 ---
 
@@ -102,7 +185,7 @@ gh release create 1.2.9 dist/unraid-plugin-docker-model-1.2.9-x86_64-1.txz \
 **下一步**。当前测试机上是**手工**装好的（直接 `cp` 二进制 + `docker tag` 镜像），
 `.plg` 安装器本身还没在真实主机上跑通过。
 
-Release 1.2.9 已发布，`.plg` 可直接取自 Release 资产，无需先在本地构建。
+Release 20261027 已发布，`.plg` 可直接取自 Release 资产，无需先在本地构建。
 需要用 `.plg` 走一遍完整流程：
 
 ```bash

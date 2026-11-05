@@ -4,11 +4,18 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-Since the 2026.11.05 release the **plugin version** is date based
-(`YYYY.MM.DD.HHMM`), the same scheme the official Limetech plugins use. The
-Unraid installer compares plugin versions with `strcmp()`, a byte-wise string
-compare, so the version has to sort lexicographically; a semantic version such
-as `1.2.10` sorts *below* `1.2.9` and Unraid would refuse the upgrade.
+Since the 20261027 release the **plugin version** is the release date,
+`YYYYMMDD`. When more than one release happens on the same day, the later ones
+carry a letter suffix: `20261105.a`, `20261105.b` and so on. The Unraid
+installer compares plugin versions with `strcmp()`, a byte-wise string compare,
+so the format has to sort in release order, and this one does:
+
+```
+20261105 < 20261105.a < 20261105.b < 20261106
+```
+
+A semantic version does not sort that way — `1.2.10` sorts *below* `1.2.9` and
+Unraid would refuse the upgrade.
 
 The **upstream version** (the bundled `docker-model-plugin` release) is tracked
 separately and is recorded in the plugin changelog, the package description and
@@ -71,7 +78,7 @@ the WebGUI page.
   cover TLS handshake failures, so a single flaky connection used to abort the
   build.
 
-## [1.2.9] - 2026-10-27
+## [20261027] - 2026-10-27
 
 ### Added
 
@@ -102,5 +109,5 @@ the WebGUI page.
   that the direct and the mirrored variant reference the same package and
   checksum
 
-[Unreleased]: https://github.com/zhz8888/unraid-plugin-docker-model/compare/1.2.9...HEAD
-[1.2.9]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/1.2.9
+[Unreleased]: https://github.com/zhz8888/unraid-plugin-docker-model/compare/20261027...HEAD
+[20261027]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261027
