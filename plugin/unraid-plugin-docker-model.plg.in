@@ -14,13 +14,15 @@
       WebGUI read: name, author, version, pluginURL, support, min, launch and
       icon. Attributes such as donate or webUI are not honoured by the
       installer and are therefore not used.
-    - The version is the plugin's own release version and is date based
-      (YYYY.MM.DD.HHMM), the same scheme the official plugins use. The
+    - The version is the plugin's own release version: the release date as
+      YYYYMMDD, followed by a letter suffix when more than one release
+      happens on the same day (YYYYMMDD.a, YYYYMMDD.b and so on). The
       installer compares plugin versions with strcmp(), a byte wise string
-      compare, so the version has to sort lexicographically: a fixed width
-      date does that, a semantic version such as 1.2.10 does not, because it
-      sorts below 1.2.9. The version of the bundled upstream binary is
-      carried separately in the "upstream" entity.
+      compare, so this format is what sorts in release order:
+      20261105 < 20261105.a < 20261105.b < 20261106. A semantic version
+      such as 1.2.10 does not sort that way, because it sorts below 1.2.9.
+      The version of the bundled upstream binary is carried separately in
+      the "upstream" entity.
     - The package is cached on the flash device under
       /boot/config/plugins/<name>/ and its SHA256 is pinned in the plugin
       file. The version is part of the file name, because the installer never

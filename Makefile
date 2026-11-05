@@ -3,11 +3,12 @@ SHELL := /bin/bash
 
 PLUGIN_NAME := unraid-plugin-docker-model
 
-# Version of this plugin. Date based, the same scheme the official Limetech
-# plugins use. The Unraid installer compares it to decide whether an update
-# has to be applied, so it must increase on every release. Pin it to keep a
+# Version of this plugin: the release date, YYYYMMDD. A second release on the
+# same day adds a letter suffix, YYYYMMDD.a, YYYYMMDD.b and so on. The
+# Unraid installer compares plugin versions with strcmp(), a byte wise string
+# compare, so this format is what sorts in release order. Pin it to keep a
 # build reproducible.
-PLUGIN_VERSION ?= $(shell date -u +%Y.%m.%d.%H%M)
+PLUGIN_VERSION ?= $(shell date +%Y%m%d)
 
 # Version of the upstream docker-model-plugin release that is bundled.
 DMR_VERSION ?= 1.2.9

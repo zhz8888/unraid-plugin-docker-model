@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       plugin_version:
-        description: 'Plugin version (YYYY.MM.DD.HHMM); defaults to a fixed value'
+        description: 'Plugin version (YYYYMMDD, or YYYYMMDD.a for a second release on the same day); defaults to a fixed value'
         required: false
       upstream_version:
         description: 'docker-model-plugin version to bundle'
@@ -27,7 +27,7 @@ jobs:
       # A fixed plugin version keeps the build reproducible: the version is
       # part of the package name, so a moving timestamp would change the
       # artifact between the builds that are compared below.
-      PLUGIN_VERSION: ${{ github.event.inputs.plugin_version || '2026.01.01.0000' }}
+      PLUGIN_VERSION: ${{ github.event.inputs.plugin_version || '20260101' }}
       UPSTREAM_VERSION: ${{ github.event.inputs.upstream_version || '1.2.9' }}
     steps:
       - uses: actions/checkout@v4

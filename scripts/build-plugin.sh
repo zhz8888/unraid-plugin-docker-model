@@ -18,16 +18,21 @@
 #
 # Usage:
 #   ./scripts/build-plugin.sh
-#   PLUGIN_VERSION=2026.11.05.1200 ./scripts/build-plugin.sh
+#   PLUGIN_VERSION=20261105 ./scripts/build-plugin.sh
 #   DMR_VERSION=1.2.9 ./scripts/build-plugin.sh
 #   DMR_ARCH=arm64 ./scripts/build-plugin.sh
 #   DMR_UBUNTU=noble ./scripts/build-plugin.sh
 #
 # Version scheme:
-#   PLUGIN_VERSION  the version of this plugin, date based (YYYY.MM.DD.HHMM).
-#                   The Unraid installer compares it to decide whether an
-#                   update has to be applied, so it must increase on every
-#                   release and must not be tied to the upstream version.
+#   PLUGIN_VERSION  the version of this plugin. It is the release date,
+#                   YYYYMMDD, followed by a letter suffix when more than one
+#                   release happens on the same day: YYYYMMDD.a, YYYYMMDD.b
+#                   and so on. The Unraid installer compares plugin versions
+#                   with strcmp(), a byte wise string compare, so this format
+#                   is what sorts in release order:
+#                     20261105 < 20261105.a < 20261105.b < 20261106
+#                   The first release of a day therefore carries no suffix.
+#                   The version must not be tied to the upstream version.
 #   DMR_VERSION     the version of the upstream docker-model-plugin release
 #                   that is bundled. Recorded in the package description, the
 #                   changelog and the WebGUI page.
@@ -39,10 +44,11 @@ DMR_VERSION="${DMR_VERSION:-1.2.9}"
 DMR_ARCH="${DMR_ARCH:-amd64}"          # amd64 | arm64 | armhf
 DMR_UBUNTU="${DMR_UBUNTU:-noble}"      # 22.04=jammy 24.04=noble
 
-# The plugin version. Defaults to the current UTC timestamp, which is the
-# scheme the official Limetech plugins use. Pin it explicitly for a
-# reproducible build.
-PLUGIN_VERSION="${PLUGIN_VERSION:-$(date -u +%Y.%m.%d.%H%M)}"
+# The plugin version: the release date, YYYYMMDD. A second release on the
+# same day adds a letter suffix, YYYYMMDD.a, YYYYMMDD.b and so on.
+# The date is the local one, because "the day of the release" is what the
+# version stands for.
+PLUGIN_VERSION="${PLUGIN_VERSION:-$(date +%Y%m%d)}"
 
 # Unraid plugin name (also used as the .plg filename, the flash cache
 # directory name, and the Slackware package name)
@@ -85,6 +91,13 @@ sha256_of() {
 }
 
 need() { command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"; }
+
+# Reject anything that would not sort correctly under strcmp(), the
+# comparison the Unraid installer uses for plugin versions.
+if ! printf '%s' "${PLUGIN_VERSION}" | grep -Eq '^[0-9]{8}(\.[a-z])?$'; then
+  die "invalid plugin version '${PLUGIN_VERSION}'
+  expected YYYYMMDD, or YYYYMMDD.a when a day carries more than one release"
+fi
 
 # Download a URL with an explicit retry loop.
 #

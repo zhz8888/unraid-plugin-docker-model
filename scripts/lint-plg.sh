@@ -100,11 +100,14 @@ if name and '&' in name:
     problem(f"the plugin name still contains an entity reference: {name}")
 
 # --- version scheme ----------------------------------------------------
-# The official Limetech plugins use a date based version, YYYY.MM.DD.HHMM.
-# The Unraid installer compares it to decide whether an update has to be
-# applied, so it has to increase on every release.
-if not re.fullmatch(r'\d{4}\.\d{2}\.\d{2}\.\d{4}', version):
-    problem(f"version '{version}' is not the official date based scheme YYYY.MM.DD.HHMM")
+# The plugin version is the release date, YYYYMMDD. A second release on the
+# same day adds a letter suffix: YYYYMMDD.a, YYYYMMDD.b and so on. The
+# Unraid installer compares plugin versions with strcmp(), a byte wise
+# string compare, so this format is what sorts in release order:
+#   20261105 < 20261105.a < 20261105.b < 20261106
+if not re.fullmatch(r'\d{8}(\.[a-z])?', version):
+    problem(f"version '{version}' does not follow the release date scheme "
+            f"YYYYMMDD, or YYYYMMDD.a when a day carries more than one release")
 
 # The plugin version must not be the bundled upstream version: a repackaging
 # of the same upstream release would then never reach installed users.
