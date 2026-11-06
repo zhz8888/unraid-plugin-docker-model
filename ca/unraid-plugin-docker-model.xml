@@ -27,7 +27,7 @@
 
   See docs/05-unraid-plugin-conventions.md for the full checklist.
 -->
-<Containers>
+<Plugin>
   <PluginURL>https://github.com/zhz8888/unraid-plugin-docker-model/releases/latest/download/unraid-plugin-docker-model.plg</PluginURL>
   <PluginAuthor>zhz8888</PluginAuthor>
   <Beta>False</Beta>
@@ -54,4 +54,4 @@
   <ReadMe>https://github.com/zhz8888/unraid-plugin-docker-model/blob/main/README.md</ReadMe>
   <License>https://github.com/zhz8888/unraid-plugin-docker-model/blob/main/LICENSE</License>
   <Icon>https://raw.githubusercontent.com/zhz8888/unraid-plugin-docker-model/main/src/usr/local/emhttp/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.png</Icon>
-</Containers>
+</Plugin>
