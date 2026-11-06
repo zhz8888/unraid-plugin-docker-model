@@ -337,16 +337,13 @@ plugins by the `docker-<subcommand>` filename convention. Everything else uses t
 │   └── usr/local/emhttp/plugins/unraid-plugin-docker-model/
 │       ├── DockerModelRunner.page         # WebGUI page (Settings tab)
 │       ├── DockerModelRunner-1-Settings.page
-│       ├── page.php                       # direct URL entry point
 │       ├── README.md                      # plugin description for the Plugins tab
-│       ├── settings.json                  # plugin settings
 │       ├── diagnostics.json               # support bundle definition
 │       ├── unraid-plugin-docker-model.png # icon
-│       ├── locales/en_US.json
 │       └── include/
 │           ├── common.php                 # helpers
 │           ├── Pages/{Status,Settings}.php
-│           └── data/Action.php            # AJAX action endpoint
+│           └── data/{Status,Action}.php   # AJAX endpoints
 ├── scripts/
 │   ├── build-plugin.sh                    # build: deb -> verify -> unpack -> txz -> plg
 │   ├── fetch-plugin.sh                    # download + verify + unpack only (audit)

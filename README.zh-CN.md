@@ -310,16 +310,13 @@ Slackware 基础的 Unraid 上可直接运行。
 │   └── usr/local/emhttp/plugins/unraid-plugin-docker-model/
 │       ├── DockerModelRunner.page         # WebGUI 页面（Settings 页签）
 │       ├── DockerModelRunner-1-Settings.page
-│       ├── page.php                       # 直接访问入口
 │       ├── README.md                      # Plugins 页的插件说明
-│       ├── settings.json                  # 插件设置
 │       ├── diagnostics.json               # 支持包定义
 │       ├── unraid-plugin-docker-model.png # 图标
-│       ├── locales/en_US.json
 │       └── include/
 │           ├── common.php                 # 公共辅助函数
 │           ├── Pages/{Status,Settings}.php
-│           └── data/Action.php            # AJAX 操作接口
+│           └── data/{Status,Action}.php   # AJAX 数据与操作接口
 ├── scripts/
 │   ├── build-plugin.sh                    # 构建：deb -> 校验 -> 解包 -> txz -> plg
 │   ├── fetch-plugin.sh                    # 仅下载 + 校验 + 解包（审计用）

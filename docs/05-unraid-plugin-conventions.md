@@ -164,7 +164,7 @@ WebGUI 页面在包里，随 txz 一起安装。
 | 4 | 提供 `author` / `support` / `icon` / `launch` | 安装器 usage 文本 | 全部提供；`launch="Settings/DockerModelRunner"` 指向本插件的 `.page` 文件，`icon` 解析到插件目录下的 PNG |
 | 5 | 插件目录放 `README.md`，Plugins 页会渲染成说明 | `ShowPlugins.php` | 包内含 `README.md`（含版本占位符，构建时替换） |
 | 6 | 用 Slackware 包路线（`upgradepkg` / `removepkg`），不要手拷二进制 | 三个官方插件都这么做 | `src/` 是包源码树，构建时打进 txz |
-| 7 | 提供 `settings.json` 与 `diagnostics.json` | `unraid/unraid-tailscale` | 已提供 |
+| 7 | 提供 `settings.json` 与 `diagnostics.json` | `unraid/unraid-tailscale` | `diagnostics.json` 已提供。`settings.json` 曾声明 `DMR_GPU_MODE` / `DMR_REGISTRY_PREFIX`，但插件没有任何代码消费这两个键（GPU 模式由页面上的两个按钮显式选择），已于 2026-11-06 移除，避免"声明了却没人读"的死配置 |
 | 8 | 提供 `<Name>.page` 页面文件 | Dynamix 页面机制 | `DockerModelRunner.page` + `DockerModelRunner-1-Settings.page` |
 | 9 | PHP 用 `$docroot` 解析路径 | `unraid/plugin`、`PluginHelpers.php` | `.page` 文件统一走 `$docroot` |
 | 10 | 安装脚本不能有交互提示 | 安装器用 `popen()` 非交互执行 | 卸载 runner 只给提示，不自动执行 |
