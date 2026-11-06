@@ -78,6 +78,66 @@ the WebGUI page.
   cover TLS handshake failures, so a single flaky connection used to abort the
   build.
 
+## [20261106] - 2026-11-06
+
+The bundled `docker-model-plugin` is unchanged at 1.2.9: this is a repackaging
+release that fixes the WebGUI layer, the package build and the release checks.
+
+### Added
+
+- `include/data/Status.php` — the status tab now loads the CLI version, the
+  Model Runner state and the model list asynchronously. It used to run three
+  docker commands while rendering, so a stopped Model Runner delayed the whole
+  WebGUI tab for up to fifty seconds
+- `lint-plg.sh` fails on a shell error mode (`set -e`, `set -u`) in the install
+  or remove script. Such a mode turns an unset variable into a non-zero exit,
+  which aborts the install exactly like an explicit `exit 1`
+- The upstream check verifies that the pinned version exists in the apt index
+  and that `Makefile` agrees with `scripts/build-plugin.sh`, and
+  `verify-release.sh` checks the new status endpoint
+
+### Changed
+
+- The install and remove scripts drop `set -u` and carry
+  `trap 'exit 0' EXIT`. A non-zero exit makes the installer move the `.plg` to
+  `/boot/config/plugins-error/` and leaves the plugin unregistered, so the user
+  lost the Uninstall button
+- The action endpoint starts every Model Runner action in the background and
+  reports whether the start succeeded. The synchronous uninstall could run into
+  the FastCGI request timeout
+- `build.yml` no longer repeats the bundled upstream version: an empty workflow
+  input means "use the default of `scripts/build-plugin.sh`", so the pin has a
+  single source of truth again. The verify job uploads only the package,
+  because the `.plg` of a non-release build points at a tag that does not exist
+- The Community Applications wrapper is rooted at `<Plugin>`, the element the
+  current CA template uses for plugins, instead of `<Containers>`
+- The `<CHANGES>` block of the `.plg` is generated from this file at build
+  time, so a release no longer repeats the notes of an older one
+
+### Fixed
+
+- Both WebGUI tabs showed `unknown` for the plugin and upstream versions. The
+  values in `plugin.info` were written unquoted, and the INI scanner reads the
+  `~` of the upstream artifact name as a bitwise negation operator, so
+  `parse_ini_file()` rejected the file as a whole
+- A build on Windows wrote CRLF into the generated `.plg`. The `<INLINE>`
+  scripts are bash, and CRLF breaks their line continuations on the host
+- The upstream check reported `0.1.24` as the newest release while the
+  repository already bundled `1.2.9`. The apt index lists the versions oldest
+  first and the check printed the first block, which turned the scheduled run
+  into a downgrade request
+- A page exception was printed into the page together with its stack trace and
+  absolute paths. It is appended to `/var/log` now and the page only reports
+  where to look
+- The result and status panels are built with `textContent` instead of
+  `innerHTML`, because the message can carry the raw docker output
+
+### Removed
+
+- `settings.json`, which declared two settings that no code ever read
+- `locales/en_US.json`, which the page never consulted
+- `page.php`, a second entry point that duplicated the status tab
+
 ## [20261027] - 2026-10-27
 
 ### Added
@@ -109,5 +169,6 @@ the WebGUI page.
   that the direct and the mirrored variant reference the same package and
   checksum
 
-[Unreleased]: https://github.com/zhz8888/unraid-plugin-docker-model/compare/20261027...HEAD
+[Unreleased]: https://github.com/zhz8888/unraid-plugin-docker-model/compare/20261106...HEAD
+[20261106]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261106
 [20261027]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261027
