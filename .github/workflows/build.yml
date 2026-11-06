@@ -79,10 +79,13 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
+          # Only the package is uploaded. The .plg of a non-release build
+          # points at a release tag that does not exist (PLUGIN_VERSION is the
+          # fixed build version), so installing that artifact would fail with
+          # a download error. The release job below rebuilds the installable
+          # .plg from the git tag it publishes.
           name: unraid-plugin-docker-model
-          path: |
-            dist/*.txz
-            dist/*.plg
+          path: dist/*.txz
           if-no-files-found: error
 
   release:
