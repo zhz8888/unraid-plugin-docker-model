@@ -12,9 +12,8 @@ on:
         description: 'Plugin version (YYYYMMDD, or YYYYMMDD.a for a second release on the same day); defaults to a fixed value'
         required: false
       upstream_version:
-        description: 'docker-model-plugin version to bundle'
+        description: 'docker-model-plugin version to bundle; leave empty to use the version pinned in scripts/build-plugin.sh'
         required: false
-        default: '1.2.9'
 
 permissions:
   contents: read
@@ -28,7 +27,10 @@ jobs:
       # part of the package name, so a moving timestamp would change the
       # artifact between the builds that are compared below.
       PLUGIN_VERSION: ${{ github.event.inputs.plugin_version || '20260101' }}
-      UPSTREAM_VERSION: ${{ github.event.inputs.upstream_version || '1.2.9' }}
+      # Empty means "use the default of scripts/build-plugin.sh", which is the
+      # one place the bundled version is pinned. A copy here would be a second
+      # source of truth and could drift away from the upstream check.
+      UPSTREAM_VERSION: ${{ github.event.inputs.upstream_version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -99,7 +101,8 @@ jobs:
       # The tag is the plugin version. The .plg points at the release asset
       # under the same tag, so both have to agree.
       PLUGIN_VERSION: ${{ github.ref_name }}
-      UPSTREAM_VERSION: ${{ github.event.inputs.upstream_version || '1.2.9' }}
+      # Same rule as above: the build script owns the pinned version.
+      UPSTREAM_VERSION: ${{ github.event.inputs.upstream_version }}
     steps:
       - uses: actions/checkout@v4
 

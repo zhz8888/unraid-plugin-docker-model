@@ -21,39 +21,79 @@ jobs:
         id: latest
         run: |
           set -euo pipefail
-          URL="https://download.docker.com/linux/ubuntu/dists/noble/stable/binary-amd64/Packages"
+
+          # Watch the channel the build actually uses. A version that only
+          # exists for another Ubuntu release or architecture is not what the
+          # plugin bundles, so it must not be reported as an update.
+          PIN_UBUNTU=$(awk -F'DMR_UBUNTU:-' '/DMR_UBUNTU:-/{split($2,a,"}");print a[1];exit}' scripts/build-plugin.sh)
+          PIN_ARCH=$(awk -F'DMR_ARCH:-' '/DMR_ARCH:-/{split($2,a,"}");print a[1];exit}' scripts/build-plugin.sh)
+          PIN_VERSION=$(awk -F'DMR_VERSION:-' '/DMR_VERSION:-/{split($2,a,"}");print a[1];exit}' scripts/build-plugin.sh)
+
+          if [ -z "$PIN_UBUNTU" ] || [ -z "$PIN_ARCH" ] || [ -z "$PIN_VERSION" ]; then
+            echo "::error::could not read the pinned upstream defaults from scripts/build-plugin.sh"
+            exit 1
+          fi
+
+          URL="https://download.docker.com/linux/ubuntu/dists/${PIN_UBUNTU}/stable/binary-${PIN_ARCH}/Packages"
           curl -fsSL --retry 3 --max-time 120 "$URL" -o /tmp/Packages
 
-          # The index lists every published version, oldest first, so taking
-          # the first block returns the oldest release instead of the newest.
-          # Collect them all and sort them by version.
-          LATEST=$(awk '
+          # The index lists every published version and its order is not a
+          # version order: it starts with the oldest release. Printing the
+          # first block therefore reported 0.1.24 while 1.2.9 was already
+          # published, and the scheduled run filed a downgrade request.
+          #
+          # Collect every candidate, drop the suite revision and any
+          # pre-release, and let sort -V choose the newest stable version.
+          CANDIDATES=/tmp/dmr-candidates.txt
+          awk '
             /^Package: / { inblk = ($2 == "docker-model-plugin"); next }
-            inblk && /^Version: / { print $2 }
-          ' /tmp/Packages | sed 's/-[0-9]*~ubuntu.*//' | sort -V | tail -1)
+            inblk && /^Version: / {
+              version = $2
+              # 1.2.9-1~ubuntu.24.04~noble -> 1.2.9 (the same for ~debian...)
+              sub(/-[0-9]+(~[A-Za-z0-9.]+)*$/, "", version)
+              # an RC is not an upgrade to offer to plugin users
+              if (version ~ /([~-](rc|alpha|beta)|preview)/) next
+              print version
+            }
+          ' /tmp/Packages > "$CANDIDATES"
+
+          LATEST=$(sort -V "$CANDIDATES" | tail -1)
 
           if [ -z "$LATEST" ]; then
             echo "::error::could not determine the latest upstream version"
             exit 1
           fi
 
-          # Version currently pinned by the build script
-          CURRENT=$(grep -oE 'DMR_VERSION:-[0-9.]+' scripts/build-plugin.sh | head -1 | sed 's/DMR_VERSION:-//')
+          # If the pinned version is not in the index at all, either the pin
+          # is wrong or the publishing channel moved. Comparing versions is
+          # meaningless then, and guessing is how a bogus issue gets filed.
+          if ! sort -V -u "$CANDIDATES" | grep -qx -- "$PIN_VERSION"; then
+            echo "::error::pinned version ${PIN_VERSION} is not in the ${PIN_UBUNTU}/${PIN_ARCH} index"
+            exit 1
+          fi
 
-          # Only a real upgrade is worth an issue. Without this guard an index
-          # entry that sorts lower would be filed as a "bump" request that
-          # downgrades the bundled binary.
+          # The Makefile repeats the pin for local builds. A mismatch means
+          # the check and the build disagree about what is bundled, which is
+          # the other way a wrong "current" version turns into a fake update.
+          MAKE_VERSION=$(awk -F'=' '/^DMR_VERSION[[:space:]]*\?=/{gsub(/[[:space:]]/,"",$2);print $2;exit}' Makefile)
+          if [ -n "$MAKE_VERSION" ] && [ "$MAKE_VERSION" != "$PIN_VERSION" ]; then
+            echo "::error::Makefile pins ${MAKE_VERSION}, scripts/build-plugin.sh defaults to ${PIN_VERSION}"
+            exit 1
+          fi
+
+          # Only a real upgrade is worth an issue: a version that sorts lower
+          # must never become a "bump" request that downgrades the binary.
           NEWER=false
-          if [ -n "$CURRENT" ] && [ "$LATEST" != "$CURRENT" ]; then
-            if [ "$(printf '%s\n%s\n' "$CURRENT" "$LATEST" | sort -V | tail -1)" = "$LATEST" ]; then
+          if [ "$LATEST" != "$PIN_VERSION" ]; then
+            if [ "$(printf '%s\n%s\n' "$PIN_VERSION" "$LATEST" | sort -V | tail -1)" = "$LATEST" ]; then
               NEWER=true
             fi
           fi
 
-          echo "latest=$LATEST"   >> "$GITHUB_OUTPUT"
-          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
-          echo "newer=$NEWER"     >> "$GITHUB_OUTPUT"
-          echo "upstream latest: $LATEST (pinned: $CURRENT, newer: $NEWER)"
+          echo "latest=$LATEST"       >> "$GITHUB_OUTPUT"
+          echo "current=$PIN_VERSION" >> "$GITHUB_OUTPUT"
+          echo "newer=$NEWER"         >> "$GITHUB_OUTPUT"
+          echo "channel ${PIN_UBUNTU}/${PIN_ARCH}: pinned ${PIN_VERSION}, latest ${LATEST}, newer ${NEWER}"
 
       - name: Open an issue when a newer version exists
         if: steps.latest.outputs.newer == 'true'
