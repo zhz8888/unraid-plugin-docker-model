@@ -48,8 +48,17 @@ function dmr_plugin_info()
 
     $file = DMR_PLUGIN_ROOT . '/plugin.info';
     if (is_readable($file)) {
-        foreach (parse_ini_file($file) as $key => $value) {
-            $info[$key] = (string) $value;
+        // INI_SCANNER_RAW returns the values literally. The normal scanner
+        // evaluates operators, and the upstream artifact name contains a
+        // "~" (docker-model-plugin_1.2.9-1~ubuntu.24.04~noble_amd64.deb),
+        // which is the bitwise negation operator, so the parser would reject
+        // the whole file instead of returning the values.
+        $parsed = parse_ini_file($file, false, INI_SCANNER_RAW);
+        if (is_array($parsed)) {
+            foreach ($parsed as $key => $value) {
+                // RAW mode keeps the surrounding quotes of a quoted value.
+                $info[$key] = trim((string) $value, "\"'");
+            }
         }
     }
 

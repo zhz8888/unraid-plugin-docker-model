@@ -70,17 +70,34 @@ $binaryInstalled = dmr_binary_installed();
 
 <script type="text/javascript">
 (function () {
-    function post(action) {
+    function show(text, hint) {
         var box = document.getElementById('dmr-action-result');
-        box.innerHTML = '<em>Working ...</em>';
+        if (!box) {
+            return;
+        }
+        box.textContent = '';
+        var line = document.createElement('strong');
+        line.textContent = text;
+        box.appendChild(line);
+        if (hint) {
+            var note = document.createElement('div');
+            note.className = 'hint';
+            note.textContent = hint;
+            box.appendChild(note);
+        }
+    }
+
+    function post(action) {
+        show('Working ...', '');
         $.post('/plugins/unraid-plugin-docker-model/include/data/Action.php',
             {action: action},
             function (data) {
                 var message = (data && data.message) ? data.message : 'Done.';
-                box.innerHTML = '<strong>' + message + '</strong>'
-                    + '<div class="hint">Reload the page to see the updated state.</div>';
+                show(message, 'Reload the page to see the updated state.');
             },
-            'json');
+            'json').fail(function () {
+                show('The action failed.', 'See the WebGUI log for details.');
+            });
     }
 
     document.addEventListener('click', function (event) {
