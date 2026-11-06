@@ -159,7 +159,9 @@ for i, f in enumerate(files):
         if inline.strip():
             tag = 'remove' if method == 'remove' else 'install'
             path = f"{tmp}/inline-{i}-{tag}.sh"
-            with open(path, 'w') as fh:
+            # newline='\n' keeps the extracted script LF-only on every
+            # platform: a CRLF file makes bash mis-parse line continuations.
+            with open(path, 'w', newline='\n') as fh:
                 fh.write(inline)
             print(f"INLINE_SCRIPT {path}")
 
@@ -229,9 +231,19 @@ PY
     ok "no non-zero exit in the plugin scripts"
   fi
 
+  # A shell error mode turns an unset variable or a failing command into a
+  # non-zero exit, which aborts the install just like an explicit exit 1. The
+  # literal exit check above cannot see it.
+  log "checking for a shell error mode..."
+  if grep -Eq '(^|[[:space:];])set[[:space:]]+-[A-Za-z]*[eu]([[:space:]]|$)' "${PLG}"; then
+    bad "a shell error mode is enabled in a plugin script; an unset variable or a failing command would abort the install"
+  else
+    ok "no shell error mode in the plugin scripts"
+  fi
+
   # ---------------------------------------------------------------- 8. placeholders
   log "checking for leftover placeholders..."
-  if grep -q '@@PLUGIN_VERSION@@\|@@UPSTREAM_VERSION@@\|@@TXZ_NAME@@\|@@TXZ_SHA256@@\|@@BINARY_SHA256@@\|@@PLG_URL@@\|@@TXZ_URL@@\|@@SOURCE_NOTE@@' "${PLG}"; then
+  if grep -q '@@PLUGIN_VERSION@@\|@@UPSTREAM_VERSION@@\|@@TXZ_NAME@@\|@@TXZ_SHA256@@\|@@BINARY_SHA256@@\|@@PLG_URL@@\|@@TXZ_URL@@\|@@SOURCE_NOTE@@\|@@CHANGES_BODY@@\|@@SIBLING_CLEANUP@@' "${PLG}"; then
     bad "unsubstituted functional placeholders found"
   else
     ok "no functional placeholders left"

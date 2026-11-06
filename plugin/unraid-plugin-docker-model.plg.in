@@ -41,7 +41,7 @@
       where the expansion is guaranteed.
     - Text inside a CDATA section is literal. An entity reference inside
       CDATA is NOT expanded, it would end up in the script verbatim. The
-      build time placeholders (@@NAME@@, ...) are used there instead.
+      build time placeholders (@@PLUGIN_NAME@@, ...) are used there instead.
 
   This single template produces two plugin files:
     - unraid-plugin-docker-model.plg         downloads from GitHub directly
@@ -83,23 +83,7 @@
 <CHANGES><![CDATA[##@@PLUGIN_NAME@@
 ###@@PLUGIN_VERSION@@
 
-- Bundles the Docker Model Runner CLI plugin (docker-model @@UPSTREAM_VERSION@@), taken
-  byte for byte from the official Docker apt artifact and verified against the
-  download.docker.com Packages index.
-- The plugin version is now independent of the bundled upstream version and
-  uses the date based scheme the Unraid installer compares correctly. A
-  repackaging of the same upstream release is therefore offered to installed
-  users as an update.
-- Adds a Settings > Docker Model Runner page that reports the CLI version, the
-  Model Runner state and the locally available models, and can deploy or
-  remove the Model Runner.
-- Cleans up stale copies of the binary from the other Docker CLI plugin
-  directories, which would otherwise shadow the installed one.
-- Removes superseded packages from the flash cache on every install.
-- The install script no longer aborts on a recoverable error. The Unraid
-  installer moves a .plg to /boot/config/plugins-error/ when the install script
-  exits non-zero, which left the plugin unregistered and uninstallable from
-  the WebGUI.
+@@CHANGES_BODY@@
 
 ### Background
 
@@ -126,7 +110,11 @@ This plugin fills that gap.
 <FILE Run="/bin/bash" Method="install">
 <INLINE>
 <![CDATA[
-set -u
+# No shell error mode is enabled on purpose: a non-zero exit aborts the
+# install, moves the .plg to /boot/config/plugins-error/ and leaves the plugin
+# unregistered, so the user could not remove it from the WebGUI any more. The
+# trap below is the final safety net for exactly that rule.
+trap 'exit 0' EXIT
 
 PLUGIN_NAME="@@PLUGIN_NAME@@"
 PLUGIN_VERSION="@@PLUGIN_VERSION@@"
@@ -282,7 +270,7 @@ exit 0
 <FILE Run="/bin/bash" Method="remove">
 <INLINE>
 <![CDATA[
-set -u
+trap 'exit 0' EXIT
 
 PLUGIN_NAME="@@PLUGIN_NAME@@"
 CONFIG_DIR="/boot/config/plugins/${PLUGIN_NAME}"

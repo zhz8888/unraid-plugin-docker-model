@@ -168,14 +168,13 @@ PY
   check_exec "usr/libexec/docker/cli-plugins/docker-model"
   check_file "install/slack-desc"
   check_exec "install/doinst.sh"
-  check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/page.php"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/DockerModelRunner.page"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/DockerModelRunner-1-Settings.page"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/include/common.php"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/include/Pages/Status.php"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/include/Pages/Settings.php"
+  check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/include/data/Status.php"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/include/data/Action.php"
-  check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/settings.json"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/diagnostics.json"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/README.md"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.png"
@@ -201,8 +200,10 @@ PY
   INFO="${TMP}/usr/local/emhttp/plugins/unraid-plugin-docker-model/plugin.info"
   if [ -f "${INFO}" ]; then
     ok "plugin.info present"
-    INFO_VERSION=$(grep '^PLUGIN_VERSION=' "${INFO}" | cut -d= -f2- || true)
-    INFO_UPSTREAM=$(grep '^UPSTREAM_VERSION=' "${INFO}" | cut -d= -f2- || true)
+    # plugin.info values are double-quoted by the generator, because the PHP
+    # INI scanner treats an unquoted "~" as an operator.
+    INFO_VERSION=$(grep '^PLUGIN_VERSION=' "${INFO}" | cut -d= -f2- | tr -d '"' || true)
+    INFO_UPSTREAM=$(grep '^UPSTREAM_VERSION=' "${INFO}" | cut -d= -f2- | tr -d '"' || true)
     if [ "${INFO_VERSION}" = "${PLUGIN_VERSION}" ]; then
       ok "plugin.info PLUGIN_VERSION matches the plg (${INFO_VERSION})"
     else
