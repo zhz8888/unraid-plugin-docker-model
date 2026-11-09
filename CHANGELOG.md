@@ -79,6 +79,10 @@ the WebGUI page.
 - The Model Runner state and the enable state of the action buttons are loaded
   from `include/data/Status.php` after the page has been rendered, instead of
   being computed while the page is rendered
+- The plugin description in the Plugins tab now follows the format of the
+  official plugins: a bold title and a short paragraph, instead of a heading
+  with its own sections. The usage and the caveats moved to the WebGUI page
+  and to the repository README, where they belong
 - The `.plg` now uses XML entities and the attribute set the Unraid installer
   and the WebGUI actually read: `name`, `author`, `version`, `pluginURL`,
   `support`, `min`, `launch` and `icon`.
