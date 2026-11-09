@@ -304,6 +304,12 @@ function dmr_translations()
  * to the translation table of Unraid itself, which is what a contributor
  * gets when the key happens to be a plain English phrase that Unraid knows.
  *
+ * The title of the page and the title of its card in the User Utilities
+ * grid are not translated here: Unraid renders both from the Title header
+ * of the page file, against its own translation table, before the body of
+ * the page runs. A plugin local table cannot reach them, so they keep the
+ * name of the product. The heading inside the page is translated.
+ *
  * @param string $key
  *
  * @return string

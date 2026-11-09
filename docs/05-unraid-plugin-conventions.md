@@ -171,7 +171,7 @@ WebGUI 页面在包里，随 txz 一起安装。
 | 11 | `donate` / `webUI` 属性**不被安装器识别** | 全仓库检索无对应处理 | 不使用这两个属性 |
 | 12 | `Type="hook"` **不是合法的 `<FILE>` 属性** | 安装器只认 `Type="base64"` | 不使用；真正的钩子是 `dynamix.plugin.manager` 的 pre/post-hooks 或插件目录下的 `event/` 脚本 |
 | 13 | **CDATA 里的实体引用不会被展开** | XML 规范：CDATA 段是字面文本 | `.plg` 里 CDATA（`<CHANGES>`、`<INLINE>`）一律用构建期占位符 `@@...@@`；实体只用在属性值和元素文本里。`lint-plg.sh` 会检查这一点 |
-| 14 | 插件自带 `locales/<locale>.json` 翻译文件 | Dynamix 的 `_(...)_` 翻译机制 | `locales/en_US.json` 是英文基准，`locales/zh_CN.json` 是简体中文，页面文案全部取自翻译表。核心语言文件按页面的 URL 段做键名且位于插件目录之外，第三方插件不写核心语言目录就无法加入自有文案，而那个目录每次开机都会被重写。`check-locales.py` 会检查各语言文件的键与 `en_US.json` 完全一致 |
+| 14 | 插件自带 `locales/<locale>.json` 翻译文件 | Dynamix 的 `_(...)_` 翻译机制 | `locales/en_US.json` 是英文基准，`locales/zh_CN.json` 是简体中文，页面文案全部取自翻译表。核心语言文件按页面的 URL 段做键名且位于插件目录之外，第三方插件不写核心语言目录就无法加入自有文案；而那个目录每次安装语言包都会被清空（每周一次的语言包刷新会 `unlink` 掉里面的 `*.txt`/`*.dot`/`*.json`），插件自带的段文件活不过一个语言包周期。`check-locales.py` 会检查各语言文件的键与 `en_US.json` 完全一致。页面标题与卡片标题例外：它们由 Unraid 用页面文件的 `Title` 头渲染，查的是核心翻译表，在插件正文之前就渲染完了，插件自己的翻译表管不到，因此保持产品名英文 |
 
 ### 两种占位机制的分工（容易踩坑）
 
