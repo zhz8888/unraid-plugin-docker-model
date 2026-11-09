@@ -120,8 +120,21 @@ docker model run ai/smollm2:360M-Q4_K_M "Hello"
 
 ### 从 WebGUI 使用
 
-插件会新增 **Settings → Docker Model Runner** 页面，展示捆绑的 CLI 版本、
-Model Runner 运行状态和本地已有模型，并可一键部署或移除 Model Runner。
+插件会在 Settings 页的 **用户程序（User Utilities）** 区域新增一张
+**Docker Model Runner** 卡片，位置与官方 Compose Manager 插件一致。页面是一张
+卡片网格，每张卡片负责一件事：
+
+- 顶部横幅：插件图标、一段简短说明、三个实时状态标签（CLI、Runner、Models），
+  以及一个 **Refresh** 按钮；
+- **Status**：捆绑的 CLI 版本、上游制品，以及 `docker model version` 的输出；
+- **Model Runner**：runner 的运行状态，以及安装（纯 CPU / GPU 自动探测）和移除
+  runner 的按钮；
+- **Local models**：本地已有的模型；
+- **Installation**：CLI 插件目录、已安装的二进制，以及等价的终端命令；
+- **Notes**：runner 附带的注意事项。
+
+所有需要调用 `docker` 的数据都在页面渲染完成后异步加载，因此 runner 停止时也不会
+拖慢页面本身。
 
 ## 从源码构建
 
@@ -272,7 +285,7 @@ Slackware 基础的 Unraid 上可直接运行。
 | flash 缓存目录 | `/boot/config/plugins/unraid-plugin-docker-model/` | 存放 txz |
 | Slackware 包 | `unraid-plugin-docker-model-<插件版本>-x86_64-1.txz` | 由 `upgradepkg` 安装 |
 | 安装的二进制 | `/usr/libexec/docker/cli-plugins/docker-model` | **名字固定** |
-| WebGUI 页面 | `/usr/local/emhttp/plugins/unraid-plugin-docker-model/DockerModelRunner.page` | `launch` 属性指向它 |
+| WebGUI 页面 | `/usr/local/emhttp/plugins/unraid-plugin-docker-model/DockerModelRunner.page` | `launch` 属性指向它，以卡片形式显示在 `Settings → 用户程序` 下 |
 | runner 容器 | `docker-model-runner` | 由 `install-runner` 创建 |
 
 安装的二进制**必须**叫 `docker-model`：docker CLI 靠 `docker-<子命令>` 的
@@ -308,14 +321,15 @@ Slackware 基础的 Unraid 上可直接运行。
 │   │   ├── slack-desc                     # 包描述
 │   │   └── doinst.sh                      # 安装后钩子
 │   └── usr/local/emhttp/plugins/unraid-plugin-docker-model/
-│       ├── DockerModelRunner.page         # WebGUI 页面（Settings 页签）
-│       ├── DockerModelRunner-1-Settings.page
+│       ├── DockerModelRunner.page         # WebGUI 页面（Settings → 用户程序 卡片）
 │       ├── README.md                      # Plugins 页的插件说明
 │       ├── diagnostics.json               # 支持包定义
 │       ├── unraid-plugin-docker-model.png # 图标
+│       ├── sheets/
+│       │   └── DockerModelRunner.css      # 卡片布局，Unraid 自动引入
 │       └── include/
 │           ├── common.php                 # 公共辅助函数
-│           ├── Pages/{Status,Settings}.php
+│           ├── Pages/Home.php             # 卡片网格
 │           └── data/{Status,Action}.php   # AJAX 数据与操作接口
 ├── scripts/
 │   ├── build-plugin.sh                    # 构建：deb -> 校验 -> 解包 -> txz -> plg

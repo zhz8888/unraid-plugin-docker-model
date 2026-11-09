@@ -1,0 +1,259 @@
+/*
+ * Docker Model Runner - card layout for the Unraid 7 WebGUI.
+ *
+ * Unraid includes this file automatically for the DockerModelRunner page:
+ * includePageStylesheets() in the Dynamix PageBuilder looks for
+ * <plugin>/sheets/<page name>.css and for the theme variant next to it.
+ *
+ * Only theme variables that every Unraid theme defines are used. The black
+ * and the white theme do not define --alt-background-color and
+ * --alt-border-color, so those are always used with a fallback.
+ */
+
+.dmr {
+    margin: 0 0 1.5rem;
+}
+
+/* ------------------------------------------------------------------ hero */
+
+.dmr-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--alt-background-color, var(--shade-bg-color));
+}
+
+.dmr-hero__img {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    flex: 0 0 auto;
+}
+
+.dmr-hero__body {
+    flex: 1 1 320px;
+    min-width: 0;
+}
+
+.dmr-hero__title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.dmr-hero__text {
+    margin: 0;
+    color: var(--alt-text-color);
+}
+
+.dmr-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+}
+
+/* ------------------------------------------------------------------ grid */
+
+.dmr-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1rem;
+    align-items: start;
+}
+
+.dmr-card {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--shade-bg-color, var(--background-color));
+    overflow: hidden;
+}
+
+.dmr-card--wide {
+    grid-column: 1 / -1;
+}
+
+.dmr-card__head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--title-header-background-color, var(--background-color));
+}
+
+.dmr-card__icon {
+    color: var(--brand-orange);
+    font-size: 1.1rem;
+}
+
+.dmr-card__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: bold;
+}
+
+.dmr-card__body {
+    padding: 0.9rem;
+}
+
+/* ----------------------------------------------------------- key values */
+
+.dmr-kv {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.8rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dmr-kv:last-child {
+    border-bottom: 0;
+}
+
+.dmr-kv__k {
+    flex: 0 0 40%;
+    min-width: 8rem;
+    color: var(--alt-text-color);
+}
+
+.dmr-kv__v {
+    flex: 1 1 45%;
+    min-width: 0;
+    word-break: break-word;
+}
+
+/* ----------------------------------------------------------------- pills */
+
+.dmr-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.15rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: var(--background-color);
+    font-size: 0.8rem;
+    font-weight: bold;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.dmr-pill__dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: currentColor;
+    flex: 0 0 auto;
+}
+
+.dmr-state {
+    margin-bottom: 0.7rem;
+}
+
+/* ----------------------------------------------------------------- text */
+
+.dmr-text {
+    margin: 0 0 0.7rem;
+    color: var(--alt-text-color);
+}
+
+.dmr-hint {
+    display: block;
+    margin: 0.6rem 0 0;
+    color: var(--alt-text-color);
+    font-size: 0.9rem;
+}
+
+.dmr-muted {
+    color: var(--alt-text-color);
+}
+
+.dmr-code {
+    margin: 0.4rem 0 0;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--alt-background-color, var(--background-color));
+    overflow-x: auto;
+    font-family: monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.dmr-notes {
+    margin: 0;
+    padding-left: 1.1rem;
+    color: var(--alt-text-color);
+}
+
+.dmr-notes li {
+    margin-bottom: 0.4rem;
+}
+
+/* --------------------------------------------------------------- actions */
+
+.dmr-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.dmr-actions .button {
+    margin: 0;
+}
+
+.dmr button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.dmr-result {
+    margin-top: 0.8rem;
+    padding: 0.6rem 0.8rem;
+    border-left: 3px solid var(--brand-orange);
+    border-radius: 4px;
+    background: var(--alt-background-color, var(--background-color));
+}
+
+.dmr-result strong {
+    display: block;
+}
+
+/* ----------------------------------------------------------------- lists */
+
+.dmr-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dmr-list__item {
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--border-color);
+    font-family: monospace;
+    font-size: 0.9rem;
+    word-break: break-all;
+}
+
+.dmr-list__item:last-child {
+    border-bottom: 0;
+}
+
+/* ----------------------------------------------------------- small width */
+
+@media (max-width: 600px) {
+    .dmr-kv__k {
+        flex: 0 0 100%;
+    }
+
+    .dmr-hero__img {
+        display: none;
+    }
+}

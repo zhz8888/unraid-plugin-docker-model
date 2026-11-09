@@ -161,11 +161,11 @@ WebGUI 页面在包里，随 txz 一起安装。
 | 1 | 一个插件只发布一个 `.plg` | 安装器按 `.plg` **文件名**建软链；两个同名 `.plg` 会在「Plugins」页显示两条 | 发布一个主 `.plg`；代理版仅供无法直连 GitHub 的网络使用，主版本安装时自动删除代理版（与官方 tailscale 处理 main/preview 分支的做法一致） |
 | 2 | 用 XML 实体避免重复字面量 | `unraid/apprise-plugin` | `.plg` 用 `<!ENTITY>` 定义 name/version/URL/哈希 |
 | 3 | `<CHANGES>` 以 `##<name>` 开头、每版一个 `###<version>` | `unraid/apprise-plugin` 的自检脚本 | 已对齐 |
-| 4 | 提供 `author` / `support` / `icon` / `launch` | 安装器 usage 文本 | 全部提供；`launch="Settings/DockerModelRunner"` 指向本插件的 `.page` 文件，`icon` 解析到插件目录下的 PNG |
+| 4 | 提供 `author` / `support` / `icon` / `launch` | 安装器 usage 文本 | 全部提供；`launch="Settings/DockerModelRunner"` 指向本插件的 `.page` 文件，`icon` 解析到插件目录下的 PNG。`launch` 与页面的 `Menu` 是两套机制：`launch` 决定 Plugins 页图标跳到哪个 URL，页面的 `Menu="Utilities"` 决定它在 Settings 页的哪个区域出现 |
 | 5 | 插件目录放 `README.md`，Plugins 页会渲染成说明 | `ShowPlugins.php` | 包内含 `README.md`（含版本占位符，构建时替换） |
 | 6 | 用 Slackware 包路线（`upgradepkg` / `removepkg`），不要手拷二进制 | 三个官方插件都这么做 | `src/` 是包源码树，构建时打进 txz |
 | 7 | 提供 `settings.json` 与 `diagnostics.json` | `unraid/unraid-tailscale` | `diagnostics.json` 已提供。`settings.json` 曾声明 `DMR_GPU_MODE` / `DMR_REGISTRY_PREFIX`，但插件没有任何代码消费这两个键（GPU 模式由页面上的两个按钮显式选择），已于 2026-11-06 移除，避免"声明了却没人读"的死配置 |
-| 8 | 提供 `<Name>.page` 页面文件 | Dynamix 页面机制 | `DockerModelRunner.page` + `DockerModelRunner-1-Settings.page` |
+| 8 | 提供 `<Name>.page` 页面文件 | Dynamix 页面机制 | 单个 `DockerModelRunner.page`（`Menu="Utilities"`、`Tabs="false"`），在 Settings 页的「用户程序」区域显示为一张卡片；卡片布局由 `sheets/DockerModelRunner.css` 提供，Unraid 会自动为该页面引入这张样式表 |
 | 9 | PHP 用 `$docroot` 解析路径 | `unraid/plugin`、`PluginHelpers.php` | `.page` 文件统一走 `$docroot` |
 | 10 | 安装脚本不能有交互提示 | 安装器用 `popen()` 非交互执行 | 卸载 runner 只给提示，不自动执行 |
 | 11 | `donate` / `webUI` 属性**不被安装器识别** | 全仓库检索无对应处理 | 不使用这两个属性 |
@@ -198,7 +198,7 @@ CDATA 里的 `&name;` 不会被 XML 解析器展开，会原样写进安装脚�
 | 3 | 清理了 `/root/.docker` 之外的 Docker CLI 插件目录缺失 | 其他目录里的同名副本会**遮蔽**已安装的二进制 | 按 Docker CLI 的查找顺序清理全部 4 个目录 |
 | 4 | flash 上的旧 txz 从不清理 | flash 空间被历次安装的包占满 | 每次安装后清掉旧包 |
 | 5 | 没有 `install/doinst.sh` | 目标目录缺失时安装会失败 | 增加 `doinst.sh`，确保目录与权限 |
-| 6 | 没有 WebGUI 页面 | 不是完整的一等插件 | 增加 Settings 页（状态 + 部署 runner） |
+| 6 | 没有 WebGUI 页面 | 不是完整的一等插件 | 增加 Settings 页「用户程序」区域的卡片（状态 + 部署 runner） |
 | 7 | 没有图标、没有插件说明 | Plugins 页显示默认图标与空白说明 | 增加图标与包内 `README.md` |
 | 8 | 没有 CA 收录所需文件 | 无法提交 CA | 增加 `ca_profile.xml` 与 wrapper XML |
 
@@ -212,7 +212,8 @@ CDATA 里的 `&name;` 不会被 XML 解析器展开，会原样写进安装脚�
    真机验证是**手工**装二进制得到的，不是走 `.plg` 装的。`docs/04-roadmap.md` 的
    P3 仍然是下一步。
 2. **WebGUI 页面未在真机验证**。页面按官方 `.page` 约定编写，但没有在 Unraid
-   的 Dynamix 里实际渲染过。
+   的 Dynamix 里实际渲染过。现在的卡片布局（`Menu="Utilities"` 的注册方式与
+   `sheets/DockerModelRunner.css`）同样尚未在真机上验证。
 3. **开机重装行为**依赖官方安装器源码（已逐行核对）与 `rc.local`（已核对），
    但没有在本机上观察到实际的开机日志。
 4. **CA 的分类名** `Tools:System` 取自已收录的 `unraid-plg-zram`，但提交前应以

@@ -1,14 +1,15 @@
-Menu="Settings:99"
-Icon="unraid-plugin-docker-model.png"
+Menu="Utilities"
 Title="Docker Model Runner"
+Icon="unraid-plugin-docker-model.png"
+Tag="fa-cubes"
 Type="xmenu"
-Tabs="true"
+Tabs="false"
 Markdown="false"
 ---
 <?php
 try {
     $docroot = $docroot ?? ($_SERVER['DOCUMENT_ROOT'] ?: '/usr/local/emhttp');
-    require_once "{$docroot}/plugins/unraid-plugin-docker-model/include/Pages/Status.php";
+    require_once "{$docroot}/plugins/unraid-plugin-docker-model/include/Pages/Home.php";
 } catch (Throwable $e) {
     @file_put_contents(
         '/var/log/unraid-plugin-docker-model-page-error.log',

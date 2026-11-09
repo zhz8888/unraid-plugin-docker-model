@@ -130,10 +130,23 @@ docker model run ai/smollm2:360M-Q4_K_M "Hello"
 
 ### From the WebGUI
 
-The plugin adds a **Settings → Docker Model Runner** page. It reports the
-bundled CLI version, the state of the Model Runner and the models that are
-available locally, and it can deploy or remove the Model Runner with one
-click.
+The plugin adds a **Settings → User Utilities → Docker Model Runner** card to
+the Settings page, the same way the official Compose Manager plugin does. The
+page is a grid of cards, one per function:
+
+- a hero strip with the plugin icon, a short description and three live status
+  pills — CLI, Runner and Models — plus a **Refresh** button;
+- **Status** — the bundled CLI version, the upstream artifact and the output of
+  `docker model version`;
+- **Model Runner** — the state of the runner and the buttons that install it
+  (CPU only or GPU auto) or remove it;
+- **Local models** — the models that are available locally;
+- **Installation** — the CLI directory, the installed binary and the equivalent
+  terminal commands;
+- **Notes** — the caveats that come with the runner.
+
+Everything that needs a `docker` call is loaded asynchronously after the page
+has been rendered, so a stopped Model Runner never delays the page itself.
 
 ## Build from source
 
@@ -299,7 +312,7 @@ still need verification on a real Unraid host.
 | Flash cache dir | `/boot/config/plugins/unraid-plugin-docker-model/` | holds the txz |
 | Slackware package | `unraid-plugin-docker-model-<plugin-version>-x86_64-1.txz` | installed by `upgradepkg` |
 | Installed binary | `/usr/libexec/docker/cli-plugins/docker-model` | **name is fixed** |
-| WebGUI page | `/usr/local/emhttp/plugins/unraid-plugin-docker-model/DockerModelRunner.page` | target of the `launch` attribute |
+| WebGUI page | `/usr/local/emhttp/plugins/unraid-plugin-docker-model/DockerModelRunner.page` | target of the `launch` attribute, shown as a card under `Settings → User Utilities` |
 | Runner container | `docker-model-runner` | created by `install-runner` |
 
 The installed binary **must** be called `docker-model`: the docker CLI discovers
@@ -335,14 +348,15 @@ plugins by the `docker-<subcommand>` filename convention. Everything else uses t
 │   │   ├── slack-desc                     # package description
 │   │   └── doinst.sh                      # post-install hook
 │   └── usr/local/emhttp/plugins/unraid-plugin-docker-model/
-│       ├── DockerModelRunner.page         # WebGUI page (Settings tab)
-│       ├── DockerModelRunner-1-Settings.page
+│       ├── DockerModelRunner.page         # WebGUI page (Settings → User Utilities card)
 │       ├── README.md                      # plugin description for the Plugins tab
 │       ├── diagnostics.json               # support bundle definition
 │       ├── unraid-plugin-docker-model.png # icon
+│       ├── sheets/
+│       │   └── DockerModelRunner.css      # card layout, included by Unraid automatically
 │       └── include/
 │           ├── common.php                 # helpers
-│           ├── Pages/{Status,Settings}.php
+│           ├── Pages/Home.php             # the card grid
 │           └── data/{Status,Action}.php   # AJAX endpoints
 ├── scripts/
 │   ├── build-plugin.sh                    # build: deb -> verify -> unpack -> txz -> plg

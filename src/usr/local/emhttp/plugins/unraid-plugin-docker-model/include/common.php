@@ -206,17 +206,97 @@ function dmr_esc($value)
 }
 
 /**
- * Render a key/value row.
+ * Render the opening tag of a card.
  *
- * @param string $label
- * @param string $value
+ * Unraid 7 dropped the Unraid 6 "fieldset" and "legend" styles, so the cards
+ * of this page are built from plain HTML and styled by
+ * sheets/DockerModelRunner.css, which Unraid includes automatically for this
+ * page.
+ *
+ * @param string $title
+ * @param string $icon  a Font Awesome name, without the fa- prefix
+ * @param string $id    optional id of the card element
+ * @param string $class optional extra class
  *
  * @return string
  */
-function dmr_row($label, $value)
+function dmr_card_open($title, $icon, $id = '', $class = '')
 {
-    return '<tr>'
-        . '<td style="width:280px;vertical-align:top"><strong>' . dmr_esc($label) . '</strong></td>'
-        . '<td>' . dmr_esc($value) . '</td>'
-        . '</tr>';
+    $id_attr = $id === '' ? '' : ' id="' . dmr_esc($id) . '"';
+    $class_attr = $class === '' ? '' : ' ' . dmr_esc($class);
+
+    return '<section class="dmr-card' . $class_attr . '"' . $id_attr . '>'
+        . '<header class="dmr-card__head">'
+        . '<i class="fa fa-' . dmr_esc($icon) . ' dmr-card__icon"></i>'
+        . '<h2 class="dmr-card__title">' . dmr_esc($title) . '</h2>'
+        . '</header>'
+        . '<div class="dmr-card__body">';
+}
+
+/**
+ * Render the closing tag of a card.
+ *
+ * @return string
+ */
+function dmr_card_close()
+{
+    return '</div></section>';
+}
+
+/**
+ * Render a label/value row.
+ *
+ * The value is emitted as it is, so it may contain markup such as a code
+ * element. Callers that pass untrusted data have to escape it first.
+ *
+ * @param string $label
+ * @param string $value
+ * @param string $id    optional id of the value element
+ *
+ * @return string
+ */
+function dmr_kv($label, $value, $id = '')
+{
+    $id_attr = $id === '' ? '' : ' id="' . dmr_esc($id) . '"';
+
+    return '<div class="dmr-kv">'
+        . '<div class="dmr-kv__k">' . dmr_esc($label) . '</div>'
+        . '<div class="dmr-kv__v"' . $id_attr . '>' . $value . '</div>'
+        . '</div>';
+}
+
+/**
+ * Render a status pill.
+ *
+ * The tone is expressed with the colour classes that Unraid ships for every
+ * theme, so the pill stays readable in the light and the dark themes.
+ *
+ * @param string $id
+ * @param string $label
+ * @param string $tone one of idle, ok, warn, err
+ *
+ * @return string
+ */
+function dmr_pill($id, $label, $tone = 'idle')
+{
+    $classes = array('dmr-pill');
+
+    switch ($tone) {
+        case 'ok':
+            $classes[] = 'green-text';
+            break;
+        case 'warn':
+            $classes[] = 'orange-text';
+            break;
+        case 'err':
+            $classes[] = 'red-text';
+            break;
+    }
+
+    $id_attr = $id === '' ? '' : ' id="' . dmr_esc($id) . '"';
+
+    return '<span class="' . dmr_esc(implode(' ', $classes)) . '"' . $id_attr . '>'
+        . '<i class="dmr-pill__dot"></i>'
+        . '<span class="dmr-pill__text">' . dmr_esc($label) . '</span>'
+        . '</span>';
 }

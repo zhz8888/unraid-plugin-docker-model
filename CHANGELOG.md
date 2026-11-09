@@ -25,9 +25,9 @@ the WebGUI page.
 
 ### Added
 
-- WebGUI page under `Settings → Docker Model Runner`: it reports the bundled
-  CLI version, the Model Runner state and the locally available models, and can
-  deploy or remove the Model Runner
+- WebGUI page under `Settings → User Utilities → Docker Model Runner`: a card
+  grid that reports the bundled CLI version, the Model Runner state and the
+  locally available models, and can deploy or remove the Model Runner
 - Plugin icon and a `README.md` in the plugin directory, so the Plugins tab
   shows a real icon and a real description
 - `src/` — the Slackware package source tree (package description, install
@@ -57,6 +57,21 @@ the WebGUI page.
 
 ### Changed
 
+- The WebGUI page moved from a top level tab in the Settings page to a card in
+  `Settings → User Utilities`, the way the official Compose Manager plugin
+  registers itself. The `launch` attribute is unchanged and still points at
+  `Settings/DockerModelRunner`
+- The tabbed two page layout was replaced by a single page. The plugin now
+  ships one `DockerModelRunner.page` that renders `include/Pages/Home.php`:
+  a grid of cards — Status, Model Runner, Local models, Installation and Notes
+  — below a hero strip with the plugin icon, a short description and three
+  live status pills (CLI, Runner, Models) and a Refresh button
+- The card layout is styled by `sheets/DockerModelRunner.css`, which Unraid
+  includes automatically for the page. The stylesheet only uses theme
+  variables, so it follows the light and the dark theme
+- The Model Runner state and the enable state of the action buttons are loaded
+  from `include/data/Status.php` after the page has been rendered, instead of
+  being computed while the page is rendered
 - The `.plg` now uses XML entities and the attribute set the Unraid installer
   and the WebGUI actually read: `name`, `author`, `version`, `pluginURL`,
   `support`, `min`, `launch` and `icon`.
