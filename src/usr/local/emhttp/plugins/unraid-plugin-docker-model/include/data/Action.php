@@ -85,24 +85,17 @@ $commands = array(
     'install-runner-cpu' => array(
         'command' => 'docker model install-runner --gpu none',
         'logfile' => '/var/log/docker-model-runner-install.log',
-        'message' => 'The Model Runner is being installed in the background. '
-            . 'The first start pulls the runner image, which takes a few minutes. '
-            . 'Progress is logged to /var/log/docker-model-runner-install.log.',
+        'message' => dmr_t('action.install_cpu'),
     ),
     'install-runner-gpu' => array(
         'command' => 'docker model install-runner --gpu auto',
         'logfile' => '/var/log/docker-model-runner-install.log',
-        'message' => 'The Model Runner is being installed in the background. '
-            . 'The runner image is pulled on first start and an NVIDIA or AMD GPU '
-            . 'with container runtime support is required. '
-            . 'Progress is logged to /var/log/docker-model-runner-install.log.',
+        'message' => dmr_t('action.install_gpu'),
     ),
     'uninstall-runner' => array(
         'command' => 'docker model uninstall-runner',
         'logfile' => '/var/log/docker-model-runner-uninstall.log',
-        'message' => 'The Model Runner is being removed in the background. '
-            . 'The runner image and the model volume are kept. '
-            . 'Progress is logged to /var/log/docker-model-runner-uninstall.log.',
+        'message' => dmr_t('action.uninstall'),
     ),
 );
 
@@ -111,23 +104,22 @@ $message = 'Unknown action.';
 
 if (!dmr_request_is_same_origin()) {
     http_response_code(403);
-    $message = 'The request did not come from the Unraid WebGUI.';
+    $message = dmr_t('action.cross_origin');
 } elseif (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     http_response_code(405);
-    $message = 'Only POST is supported.';
+    $message = dmr_t('action.post_only');
 } else {
     $action = isset($_POST['action']) ? (string) $_POST['action'] : '';
 
     if (!isset($commands[$action])) {
-        $message = 'Unknown action.';
+        $message = dmr_t('action.unknown');
     } elseif (!dmr_binary_installed()) {
-        $message = 'The docker model CLI plugin is not installed. Reinstall the plugin first.';
+        $message = dmr_t('action.not_installed');
     } elseif (dmr_run_in_background($commands[$action]['command'], $commands[$action]['logfile'])) {
         $ok = true;
         $message = $commands[$action]['message'];
     } else {
-        $message = 'The action could not be started. See '
-            . $commands[$action]['logfile'] . ' for details.';
+        $message = sprintf(dmr_t('action.could_not_start'), $commands[$action]['logfile']);
     }
 }
 

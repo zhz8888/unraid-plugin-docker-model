@@ -18,11 +18,11 @@ header('Content-Type: application/json');
 $binary = dmr_binary_installed();
 
 if (!$binary) {
-    $cliText = 'not installed';
+    $cliText = dmr_t('cli.not_installed');
 } else {
     $version = dmr_cli_version();
     if ($version === null) {
-        $cliText = 'unavailable';
+        $cliText = dmr_t('cli.unavailable');
     } elseif ($version['code'] !== 0) {
         $cliText = trim($version['stdout'] . ' ' . $version['stderr']);
     } else {
@@ -31,7 +31,7 @@ if (!$binary) {
 }
 
 if ($cliText === '') {
-    $cliText = 'no output';
+    $cliText = dmr_t('cli.no_output');
 }
 
 echo json_encode(array(

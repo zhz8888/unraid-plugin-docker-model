@@ -205,6 +205,151 @@ function dmr_esc($value)
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+
+/**
+ * The locale of the Unraid WebGUI, for example "zh_CN".
+ *
+ * The WebGUI keeps the locale in the session, the login page falls back to
+ * the login locale and the plugin manager reads it from the dynamix
+ * configuration. All three are checked, so the plugin also works when it is
+ * called outside a WebGUI request.
+ *
+ * @return string the locale, or an empty string when it is unknown
+ */
+function dmr_locale()
+{
+    $login_locale = $GLOBALS['login_locale'] ?? '';
+    $locale = $_SESSION['locale'] ?? $login_locale;
+
+    if (!is_string($locale) || $locale === '') {
+        $config = '/boot/config/plugins/dynamix/dynamix.cfg';
+        $parsed = @parse_ini_file($config, true);
+        $locale = is_array($parsed) ? ($parsed['display']['locale'] ?? '') : '';
+    }
+
+    return is_string($locale) ? $locale : '';
+}
+
+/**
+ * Flatten a nested translation array into a dotted key map.
+ *
+ * @param array<mixed,mixed> $array
+ * @param string $prefix
+ *
+ * @return array<string,string>
+ */
+function dmr_flatten_translations(array $array, $prefix = '')
+{
+    $result = array();
+
+    foreach ($array as $key => $value) {
+        $name = $prefix === '' ? (string) $key : $prefix . '.' . $key;
+        if (is_array($value)) {
+            $result = array_merge($result, dmr_flatten_translations($value, $name));
+        } elseif (is_string($value) && $value !== '') {
+            $result[$name] = $value;
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * The translation table of the plugin.
+ *
+ * The English file is the base, the file of the current locale overrides it.
+ * A key that is missing from the locale file therefore falls back to the
+ * English text instead of disappearing.
+ *
+ * @return array<string,string>
+ */
+function dmr_translations()
+{
+    static $table = null;
+
+    if ($table !== null) {
+        return $table;
+    }
+
+    $table = array();
+
+    $english = DMR_PLUGIN_ROOT . '/locales/en_US.json';
+    if (is_readable($english)) {
+        $decoded = json_decode((string) file_get_contents($english), true);
+        if (is_array($decoded)) {
+            $table = dmr_flatten_translations($decoded);
+        }
+    }
+
+    $locale = dmr_locale();
+    if ($locale !== '' && $locale !== 'en_US') {
+        $translated = DMR_PLUGIN_ROOT . '/locales/' . $locale . '.json';
+        if (is_readable($translated)) {
+            $decoded = json_decode((string) file_get_contents($translated), true);
+            if (is_array($decoded)) {
+                $table = array_replace($table, dmr_flatten_translations($decoded));
+            }
+        }
+    }
+
+    return $table;
+}
+
+/**
+ * Translate a key of the plugin translation table.
+ *
+ * The lookup goes through the file of the current locale first and through
+ * the English base file second, so an incomplete translation falls back to
+ * English instead of disappearing. A key that is in neither file is handed
+ * to the translation table of Unraid itself, which is what a contributor
+ * gets when the key happens to be a plain English phrase that Unraid knows.
+ *
+ * @param string $key
+ *
+ * @return string
+ */
+function dmr_t($key)
+{
+    $table = dmr_translations();
+
+    if (isset($table[$key])) {
+        return $table[$key];
+    }
+
+    if (function_exists('_')) {
+        $translated = _($key);
+        if (is_string($translated) && $translated !== $key) {
+            return $translated;
+        }
+    }
+
+    return $key;
+}
+
+/**
+ * Render a set of translations as a JSON object for the page script.
+ *
+ * The values are escaped so that the result can be embedded in a script
+ * element without ending it.
+ *
+ * @param string[] $keys
+ *
+ * @return string
+ */
+function dmr_js_translations(array $keys)
+{
+    $table = dmr_translations();
+    $result = array();
+
+    foreach ($keys as $key) {
+        $result[$key] = isset($table[$key]) ? $table[$key] : $key;
+    }
+
+    $flags = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+
+    return (string) json_encode($result, $flags);
+}
+
 /**
  * Render the opening tag of a card.
  *

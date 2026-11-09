@@ -31,6 +31,7 @@ build:
 lint:
 	./scripts/lint-plg.sh
 	./scripts/check-php-syntax.py src/
+	./scripts/check-locales.py src/usr/local/emhttp/plugins/unraid-plugin-docker-model/locales
 
 ## verify: verify artifact hashes and layout
 verify:

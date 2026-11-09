@@ -174,9 +174,19 @@ PY
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/include/Pages/Home.php"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/include/data/Status.php"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/include/data/Action.php"
+  check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/locales/en_US.json"
+  check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/locales/zh_CN.json"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/diagnostics.json"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/README.md"
   check_file "usr/local/emhttp/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.png"
+
+  # The translation files have to be valid and complete
+  log "checking the locale files..."
+  if python3 "${REPO_ROOT}/scripts/check-locales.py" "${TMP}/usr/local/emhttp/plugins/unraid-plugin-docker-model/locales"; then
+    ok "the locale files are valid and complete"
+  else
+    bad "the locale files are not consistent"; FAIL=1
+  fi
 
   # The launch attribute points at the page of the plugin, so the .page file
   # it names has to be part of the package.

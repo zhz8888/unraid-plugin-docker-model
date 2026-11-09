@@ -148,6 +148,12 @@ page is a grid of cards, one per function:
 Everything that needs a `docker` call is loaded asynchronously after the page
 has been rendered, so a stopped Model Runner never delays the page itself.
 
+The page follows the language of the Unraid WebGUI. The plugin ships its own
+translation files in `locales/`, next to the page file: `en_US.json` is the
+English base, `zh_CN.json` is the Simplified Chinese translation. A new locale
+is added by dropping a `<locale>.json` file with the same keys into that
+directory.
+
 ## Build from source
 
 No Go or Rust toolchain is required — this repo never compiles upstream code.
@@ -352,6 +358,9 @@ plugins by the `docker-<subcommand>` filename convention. Everything else uses t
 │       ├── README.md                      # plugin description for the Plugins tab
 │       ├── diagnostics.json               # support bundle definition
 │       ├── unraid-plugin-docker-model.png # icon
+│       ├── locales/
+│       │   ├── en_US.json                 # English base translation
+│       │   └── zh_CN.json                 # Simplified Chinese translation
 │       ├── sheets/
 │       │   └── DockerModelRunner.css      # card layout, included by Unraid automatically
 │       └── include/
@@ -360,6 +369,8 @@ plugins by the `docker-<subcommand>` filename convention. Everything else uses t
 │           └── data/{Status,Action}.php   # AJAX endpoints
 ├── scripts/
 │   ├── build-plugin.sh                    # build: deb -> verify -> unpack -> txz -> plg
+│   ├── check-locales.py                   # check the translation files
+│   ├── check-php-syntax.py                # check the WebGUI sources
 │   ├── fetch-plugin.sh                    # download + verify + unpack only (audit)
 │   ├── lint-plg.sh                        # static checks on the .plg
 │   ├── make-icon.py                       # regenerate the plugin icon

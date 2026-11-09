@@ -162,7 +162,7 @@ WebGUI 页面在包里，随 txz 一起安装。
 | 2 | 用 XML 实体避免重复字面量 | `unraid/apprise-plugin` | `.plg` 用 `<!ENTITY>` 定义 name/version/URL/哈希 |
 | 3 | `<CHANGES>` 以 `##<name>` 开头、每版一个 `###<version>` | `unraid/apprise-plugin` 的自检脚本 | 已对齐 |
 | 4 | 提供 `author` / `support` / `icon` / `launch` | 安装器 usage 文本 | 全部提供；`launch="Settings/DockerModelRunner"` 指向本插件的 `.page` 文件，`icon` 解析到插件目录下的 PNG。`launch` 与页面的 `Menu` 是两套机制：`launch` 决定 Plugins 页图标跳到哪个 URL，页面的 `Menu="Utilities"` 决定它在 Settings 页的哪个区域出现 |
-| 5 | 插件目录放 `README.md`，Plugins 页会渲染成说明 | `ShowPlugins.php` | 包内含 `README.md`（含版本占位符，构建时替换） |
+| 5 | 插件目录放 `README.md`，Plugins 页会渲染成说明 | `ShowPlugins.php` | 包内含 `README.md`（含版本占位符，构建时替换）。这份说明目前只有英文：Unraid 无法为它切换语言，因为 `ShowPlugins.php` 始终读取插件目录下这个固定路径 |
 | 6 | 用 Slackware 包路线（`upgradepkg` / `removepkg`），不要手拷二进制 | 三个官方插件都这么做 | `src/` 是包源码树，构建时打进 txz |
 | 7 | 提供 `settings.json` 与 `diagnostics.json` | `unraid/unraid-tailscale` | `diagnostics.json` 已提供。`settings.json` 曾声明 `DMR_GPU_MODE` / `DMR_REGISTRY_PREFIX`，但插件没有任何代码消费这两个键（GPU 模式由页面上的两个按钮显式选择），已于 2026-11-06 移除，避免"声明了却没人读"的死配置 |
 | 8 | 提供 `<Name>.page` 页面文件 | Dynamix 页面机制 | 单个 `DockerModelRunner.page`（`Menu="Utilities"`、`Tabs="false"`），在 Settings 页的「用户程序」区域显示为一张卡片；卡片布局由 `sheets/DockerModelRunner.css` 提供，Unraid 会自动为该页面引入这张样式表 |
@@ -171,6 +171,7 @@ WebGUI 页面在包里，随 txz 一起安装。
 | 11 | `donate` / `webUI` 属性**不被安装器识别** | 全仓库检索无对应处理 | 不使用这两个属性 |
 | 12 | `Type="hook"` **不是合法的 `<FILE>` 属性** | 安装器只认 `Type="base64"` | 不使用；真正的钩子是 `dynamix.plugin.manager` 的 pre/post-hooks 或插件目录下的 `event/` 脚本 |
 | 13 | **CDATA 里的实体引用不会被展开** | XML 规范：CDATA 段是字面文本 | `.plg` 里 CDATA（`<CHANGES>`、`<INLINE>`）一律用构建期占位符 `@@...@@`；实体只用在属性值和元素文本里。`lint-plg.sh` 会检查这一点 |
+| 14 | 插件自带 `locales/<locale>.json` 翻译文件 | Dynamix 的 `_(...)_` 翻译机制 | `locales/en_US.json` 是英文基准，`locales/zh_CN.json` 是简体中文，页面文案全部取自翻译表。核心语言文件按页面的 URL 段做键名且位于插件目录之外，第三方插件不写核心语言目录就无法加入自有文案，而那个目录每次开机都会被重写。`check-locales.py` 会检查各语言文件的键与 `en_US.json` 完全一致 |
 
 ### 两种占位机制的分工（容易踩坑）
 

@@ -136,6 +136,10 @@ docker model run ai/smollm2:360M-Q4_K_M "Hello"
 所有需要调用 `docker` 的数据都在页面渲染完成后异步加载，因此 runner 停止时也不会
 拖慢页面本身。
 
+页面跟随 Unraid WebGUI 的语言。插件自带翻译文件，放在页面同级的 `locales/` 目录里：
+`en_US.json` 是英文基准，`zh_CN.json` 是简体中文。新增语言只需把一份键名相同的
+`<locale>.json` 放进该目录即可。
+
 ## 从源码构建
 
 不需要 Go 或 Rust 工具链——本仓库从不编译上游代码。
@@ -325,6 +329,9 @@ Slackware 基础的 Unraid 上可直接运行。
 │       ├── README.md                      # Plugins 页的插件说明
 │       ├── diagnostics.json               # 支持包定义
 │       ├── unraid-plugin-docker-model.png # 图标
+│       ├── locales/
+│       │   ├── en_US.json                 # 英文基准翻译
+│       │   └── zh_CN.json                 # 简体中文翻译
 │       ├── sheets/
 │       │   └── DockerModelRunner.css      # 卡片布局，Unraid 自动引入
 │       └── include/
@@ -333,6 +340,8 @@ Slackware 基础的 Unraid 上可直接运行。
 │           └── data/{Status,Action}.php   # AJAX 数据与操作接口
 ├── scripts/
 │   ├── build-plugin.sh                    # 构建：deb -> 校验 -> 解包 -> txz -> plg
+│   ├── check-locales.py                   # 校验翻译文件
+│   ├── check-php-syntax.py                # 校验 WebGUI 源码
 │   ├── fetch-plugin.sh                    # 仅下载 + 校验 + 解包（审计用）
 │   ├── lint-plg.sh                        # 对 .plg 做静态检查
 │   ├── make-icon.py                       # 重新生成插件图标

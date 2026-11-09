@@ -37,6 +37,13 @@ the WebGUI page.
 - `scripts/make-icon.py` — regenerates the plugin icon
 - `docs/05-unraid-plugin-conventions.md` — rule by rule mapping of the
   official Unraid plugin rules onto this plugin
+- The WebGUI page follows the language of the Unraid WebGUI. The plugin ships
+  its own translation files in `locales/` — `en_US.json` as the English base
+  and `zh_CN.json` as the Simplified Chinese translation — and every user
+  facing string of the page comes from them
+- `scripts/check-locales.py` — checks that every locale file is valid JSON and
+  covers exactly the keys of `en_US.json`. It runs from the `make lint`
+  target and from `scripts/verify-release.sh`
 
 ### Fixed
 

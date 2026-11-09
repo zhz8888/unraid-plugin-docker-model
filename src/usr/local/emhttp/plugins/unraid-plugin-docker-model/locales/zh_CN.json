@@ -1,0 +1,79 @@
+{
+    "title": "Docker Model Runner",
+    "hero": {
+        "text": "面向 Unraid Docker CLI 的 <code>docker model</code> 命令行插件。模型在本地拉取并提供服务，runner 容器也由本页面管理。",
+        "refresh": "刷新"
+    },
+    "pill": {
+        "cli": "CLI",
+        "runner": "Runner",
+        "models": "模型"
+    },
+    "card": {
+        "status": "状态",
+        "runner": "Model Runner",
+        "models": "本地模型",
+        "install": "安装信息",
+        "notes": "注意事项"
+    },
+    "label": {
+        "plugin_version": "插件版本",
+        "upstream_version": "捆绑的 docker-model",
+        "upstream_artifact": "上游制品",
+        "cli_binary": "CLI 可执行文件",
+        "cli_version": "docker model version",
+        "cli_directory": "CLI 插件目录",
+        "installed_binary": "已安装的二进制"
+    },
+    "runner": {
+        "intro": "runner 是提供模型服务的容器，镜像在需要时按需拉取。",
+        "install_cpu": "安装（仅 CPU）",
+        "install_gpu": "安装（自动探测 GPU）",
+        "uninstall": "卸载",
+        "hint": "安装过程会拉取约 1 GB 的镜像，并在后台运行。进度记录在 <code>/var/log/docker-model-runner-install.log</code>。"
+    },
+    "models": {
+        "empty": "没有找到模型。可以执行 docker model pull ai/smollm2:360M-Q4_K_M 拉取一个。"
+    },
+    "install": {
+        "hint": "等价的终端命令："
+    },
+    "notes": {
+        "registry": "<code>docker model pull</code> 不读取 <code>daemon.json</code> 中的 <code>registry-mirrors</code> 设置。在受限网络下请通过代理前缀拉取，例如 <code>docker model pull gh-proxy.org/docker/ai/smollm2:360M-Q4_K_M</code>。",
+        "api": "runner API 监听 <code>127.0.0.1:12434</code> 且没有鉴权，请勿将该端口暴露给不可信网络。"
+    },
+    "state": {
+        "checking": "检查中 ...",
+        "loading": "加载中 ...",
+        "running": "运行中",
+        "stopped": "未运行",
+        "unknown": "未知",
+        "installed": "已安装",
+        "missing": "缺失",
+        "cli_installed": "CLI 已安装",
+        "cli_missing": "CLI 缺失",
+        "runner_running": "Runner 运行中",
+        "runner_stopped": "Runner 已停止",
+        "models_count": "%s 个模型"
+    },
+    "action": {
+        "working": "正在处理 ...",
+        "done": "完成。",
+        "refreshed": "页面会自动刷新状态。",
+        "failed": "操作失败。",
+        "log_hint": "详情请查看 WebGUI 日志。",
+        "install_cpu": "正在后台安装 Model Runner。首次启动会拉取 runner 镜像，需要几分钟。进度记录在 /var/log/docker-model-runner-install.log。",
+        "install_gpu": "正在后台安装 Model Runner。runner 镜像在首次启动时拉取，需要 NVIDIA 或 AMD 显卡并支持容器运行时。进度记录在 /var/log/docker-model-runner-install.log。",
+        "uninstall": "正在后台移除 Model Runner。runner 镜像和模型卷会保留。进度记录在 /var/log/docker-model-runner-uninstall.log。",
+        "unknown": "未知操作。",
+        "cross_origin": "该请求不是来自 Unraid WebGUI。",
+        "post_only": "只支持 POST 请求。",
+        "not_installed": "docker model 命令行插件尚未安装，请先重新安装本插件。",
+        "could_not_start": "无法启动该操作，详情请查看 %s。"
+    },
+    "cli": {
+        "not_installed": "未安装",
+        "unavailable": "不可用",
+        "no_output": "无输出"
+    }
+}

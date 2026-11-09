@@ -1,0 +1,79 @@
+{
+    "title": "Docker Model Runner",
+    "hero": {
+        "text": "The <code>docker model</code> CLI plugin for the Unraid Docker CLI. Models are pulled and served locally, the runner container is managed from this page.",
+        "refresh": "Refresh"
+    },
+    "pill": {
+        "cli": "CLI",
+        "runner": "Runner",
+        "models": "Models"
+    },
+    "card": {
+        "status": "Status",
+        "runner": "Model Runner",
+        "models": "Local models",
+        "install": "Installation",
+        "notes": "Notes"
+    },
+    "label": {
+        "plugin_version": "Plugin version",
+        "upstream_version": "Bundled docker-model",
+        "upstream_artifact": "Upstream artifact",
+        "cli_binary": "CLI binary",
+        "cli_version": "docker model version",
+        "cli_directory": "CLI directory",
+        "installed_binary": "Installed binary"
+    },
+    "runner": {
+        "intro": "The runner is a container that serves the models. It is pulled on demand.",
+        "install_cpu": "Install (CPU)",
+        "install_gpu": "Install (GPU auto)",
+        "uninstall": "Uninstall",
+        "hint": "The install pulls an image of about 1 GB and runs in the background. The progress is written to <code>/var/log/docker-model-runner-install.log</code>."
+    },
+    "models": {
+        "empty": "No models found. Pull one with docker model pull ai/smollm2:360M-Q4_K_M."
+    },
+    "install": {
+        "hint": "The same commands from a terminal:"
+    },
+    "notes": {
+        "registry": "<code>docker model pull</code> does not honour the <code>registry-mirrors</code> setting of <code>daemon.json</code>. On a restricted network pull through a proxy prefix, for example <code>docker model pull gh-proxy.org/docker/ai/smollm2:360M-Q4_K_M</code>.",
+        "api": "The runner API listens on <code>127.0.0.1:12434</code> and is unauthenticated. Do not expose that port to untrusted networks."
+    },
+    "state": {
+        "checking": "checking ...",
+        "loading": "loading ...",
+        "running": "running",
+        "stopped": "not running",
+        "unknown": "unknown",
+        "installed": "installed",
+        "missing": "missing",
+        "cli_installed": "CLI installed",
+        "cli_missing": "CLI missing",
+        "runner_running": "Runner running",
+        "runner_stopped": "Runner stopped",
+        "models_count": "%s model(s)"
+    },
+    "action": {
+        "working": "Working ...",
+        "done": "Done.",
+        "refreshed": "The state is refreshed automatically.",
+        "failed": "The action failed.",
+        "log_hint": "See the WebGUI log for details.",
+        "install_cpu": "The Model Runner is being installed in the background. The first start pulls the runner image, which takes a few minutes. Progress is logged to /var/log/docker-model-runner-install.log.",
+        "install_gpu": "The Model Runner is being installed in the background. The runner image is pulled on first start and an NVIDIA or AMD GPU with container runtime support is required. Progress is logged to /var/log/docker-model-runner-install.log.",
+        "uninstall": "The Model Runner is being removed in the background. The runner image and the model volume are kept. Progress is logged to /var/log/docker-model-runner-uninstall.log.",
+        "unknown": "Unknown action.",
+        "cross_origin": "The request did not come from the Unraid WebGUI.",
+        "post_only": "Only POST is supported.",
+        "not_installed": "The docker model CLI plugin is not installed. Reinstall the plugin first.",
+        "could_not_start": "The action could not be started. See %s for details."
+    },
+    "cli": {
+        "not_installed": "not installed",
+        "unavailable": "unavailable",
+        "no_output": "no output"
+    }
+}
