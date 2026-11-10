@@ -112,6 +112,34 @@ the WebGUI page.
   cover TLS handshake failures, so a single flaky connection used to abort the
   build.
 
+### Fixed
+
+- The action endpoint requires the request token of the page in addition to
+  the origin check, and the check compares the scheme, host and port of the
+  origin instead of the host alone. A request without `Origin` and without
+  `Referer` is rejected. The token lives in a file outside the web root, so a
+  page of another origin cannot read it.
+- `read_meta()` in `build-plugin.sh` and the lookup in `fetch-plugin.sh` reset
+  the package block on every `Package:` header. A requested version that was
+  missing from the index used to report the `Filename`, `Size` and `SHA256`
+  of the next package instead of failing.
+- A failed pack no longer deletes the artifacts of the previous build: the
+  archive is written next to its final name and renamed once it is complete.
+- The page disables the action buttons while a request is in flight, so a
+  double click cannot start two installs of the same runner, and the two
+  remaining English strings (`unavailable`) come from the translation table.
+- `Status.php` substitutes invalid UTF-8 bytes instead of returning an empty
+  body when the output of `docker` is not valid UTF-8.
+- `make lint` runs `check-locales.py` through `python3` and the script is
+  executable, so `lint` works on a fresh checkout; `verify-release.sh` prints
+  its summary when the binary is missing instead of aborting in the size
+  check.
+- `check-locales.py` no longer builds dotted keys with a doubled dot
+  (`hero..text`).
+- The upstream check passes the version it reads from the index through the
+  environment instead of interpolating it into the script source of
+  `actions/github-script`.
+
 ## [20261106] - 2026-11-06
 
 The bundled `docker-model-plugin` is unchanged at 1.2.9: this is a repackaging
