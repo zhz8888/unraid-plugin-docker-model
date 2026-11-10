@@ -23,6 +23,12 @@ the WebGUI page.
 
 ## [Unreleased]
 
+## [20261111] - 2026-11-11
+
+The bundled `docker-model-plugin` stays at 1.2.9. This release publishes the
+plugin icon of the repository, rendered from the SVG it carries, and puts the
+release notes back into the sections they belong to.
+
 ### Changed
 
 - The packaged plugin icon is now rendered from `icon.svg` instead of being
@@ -32,6 +38,13 @@ the WebGUI page.
   alias. The script now parses the SVG and renders it, so the two cannot
   differ, and it fails when the SVG uses a construct it cannot draw
   instead of quietly producing an icon that does not match
+
+### Fixed
+
+- The release notes listed seventeen changes of the 20261106 release under
+  20261110, because the Unreleased section was never drained when a release
+  was recorded. The entries are back in the section they belong to, and the
+  two Fixed blocks of the 20261110 section are one again
 
 ## [20261110] - 2026-11-10
 
@@ -251,7 +264,8 @@ release checks.
   that the direct and the mirrored variant reference the same package and
   checksum
 
-[Unreleased]: https://github.com/zhz8888/unraid-plugin-docker-model/compare/20261110...HEAD
+[Unreleased]: https://github.com/zhz8888/unraid-plugin-docker-model/compare/20261111...HEAD
+[20261111]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261111
 [20261110]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261110
 [20261106]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261106
 [20261027]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261027
