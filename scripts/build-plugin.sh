@@ -279,10 +279,12 @@ fi
 
 log "packing ${TXZ_NAME} ..."
 
-# Drop packages of previous builds so that dist/ only ever holds the
-# artifacts of the current version. This runs after the build succeeded, so
-# a failed build never destroys the artifacts of the previous one.
-rm -f "${DIST_DIR}/${PLUGIN_NAME}-"*.txz 2>/dev/null || true
+# The archive is written next to its final name first. The packages of
+# previous builds are dropped only once this one is complete and renamed,
+# so a failed pack never destroys the artifacts of the previous build.
+TXZ_PATH="${DIST_DIR}/${TXZ_NAME}"
+TXZ_TMP="${TXZ_PATH}.tmp"
+rm -f "${TXZ_TMP}"
 
 # ---- Reproducible build -------------------------------------------------
 # The archive must be byte-identical on every platform, not merely repeatable
@@ -305,7 +307,7 @@ rm -f "${DIST_DIR}/${PLUGIN_NAME}-"*.txz 2>/dev/null || true
 # single implementation that ships with the interpreter, so macOS and Linux
 # emit identical bytes by construction, and every header field is set
 # explicitly rather than inherited from the platform tool.
-python3 - "${STAGE}" "${DIST_DIR}/${TXZ_NAME}" <<'PY'
+python3 - "${STAGE}" "${TXZ_TMP}" <<'PY'
 import hashlib
 import io
 import lzma
@@ -387,9 +389,20 @@ print('sha256', hashlib.sha256(compressed).hexdigest())
 print('bytes', len(compressed))
 PY
 
-TXZ_SHA256="$(sha256_of "${DIST_DIR}/${TXZ_NAME}")"
-TXZ_SIZE=$(wc -c < "${DIST_DIR}/${TXZ_NAME}" | tr -d ' ')
+TXZ_SHA256="$(sha256_of "${TXZ_TMP}")"
+TXZ_SIZE=$(wc -c < "${TXZ_TMP}" | tr -d ' ')
+[ "${TXZ_SIZE}" -gt 0 ] || die "the package is empty: ${TXZ_TMP}"
+mv -f "${TXZ_TMP}" "${TXZ_PATH}"
 log "txz: ${TXZ_SIZE} bytes  SHA256=${TXZ_SHA256:0:16}..."
+
+# Now that the new package exists, the packages of earlier builds are
+# dropped: dist/ holds exactly one package, and a build that failed before
+# this point left the artifacts of the previous one untouched.
+for stale in "${DIST_DIR}/${PLUGIN_NAME}-"*.txz; do
+  if [ -e "${stale}" ] && [ "${stale}" != "${TXZ_PATH}" ]; then
+    rm -f "${stale}"
+  fi
+done
 
 # ---------------------------------------------------------------- 5. render the .plg files
 log "rendering ${PLUGIN_NAME}.plg and ${PLUGIN_NAME}-proxy.plg ..."
