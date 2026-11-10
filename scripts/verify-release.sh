@@ -188,6 +188,33 @@ PY
     bad "the locale files are not consistent"; FAIL=1
   fi
 
+  # The plugin icon has to be a PNG of the size the WebGUI expects, because
+  # Unraid renders it from the icon attribute of the plugin file.
+  log "checking the plugin icon..."
+  if python3 - "${TMP}/usr/local/emhttp/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.png" <<'PY'
+import struct
+import sys
+
+with open(sys.argv[1], 'rb') as handle:
+    head = handle.read(33)
+
+if head[:8] != b'\x89PNG\r\n\x1a\n':
+    print('ERROR the icon is not a PNG')
+    sys.exit(1)
+
+width, height = struct.unpack('>II', head[16:24])
+if (width, height) != (256, 256):
+    print('ERROR the icon is %dx%d, expected 256x256' % (width, height))
+    sys.exit(1)
+
+print('  the icon is a %dx%d PNG' % (width, height))
+PY
+  then
+    ok "the plugin icon is a 256x256 PNG"
+  else
+    bad "the plugin icon is not a 256x256 PNG"; FAIL=1
+  fi
+
   # The launch attribute points at the page of the plugin, so the .page file
   # it names has to be part of the package.
   LAUNCH=$(python3 - "${PLGS[0]}" <<'PY'

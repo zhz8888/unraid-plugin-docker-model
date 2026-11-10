@@ -8,6 +8,7 @@ dist/
 # Temporary files
 *.tmp
 *.part
+__pycache__/
 
 # Editor / OS noise
 .DS_Store

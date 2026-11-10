@@ -336,6 +336,7 @@ plugins by the `docker-<subcommand>` filename convention. Everything else uses t
 ├── SECURITY.md
 ├── LICENSE                                # MIT (this project)
 ├── NOTICE                                 # Apache-2.0 attribution for the bundled binary
+├── icon.svg                               # the plugin icon, the design of the packaged PNG
 ├── ca_profile.xml                         # Community Apps repository profile
 ├── Makefile                               # build / lint / verify convenience targets
 ├── ca/
@@ -373,7 +374,7 @@ plugins by the `docker-<subcommand>` filename convention. Everything else uses t
 │   ├── check-php-syntax.py                # check the WebGUI sources
 │   ├── fetch-plugin.sh                    # download + verify + unpack only (audit)
 │   ├── lint-plg.sh                        # static checks on the .plg
-│   ├── make-icon.py                       # regenerate the plugin icon
+│   ├── make-icon.py                       # render the plugin icon from icon.svg
 │   └── verify-release.sh                  # verify hashes and layout
 └── .github/
     ├── workflows/build.yml                # CI: build, lint, verify, reproducibility

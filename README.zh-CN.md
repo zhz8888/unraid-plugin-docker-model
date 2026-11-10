@@ -306,7 +306,7 @@ Slackware 基础的 Unraid 上可直接运行。
 ├── SECURITY.md
 ├── LICENSE                                # MIT（本项目自身）
 ├── NOTICE                                 # 捆绑二进制的 Apache-2.0 归属声明
-├── icon.svg                               # 仓库图标（CA 收录用）
+├── icon.svg                               # 插件图标设计源，打包用的 PNG 由它渲染
 ├── ca_profile.xml                         # CA 仓库信息
 ├── Makefile                               # build / lint / verify 快捷命令
 ├── ca/
@@ -344,7 +344,7 @@ Slackware 基础的 Unraid 上可直接运行。
 │   ├── check-php-syntax.py                # 校验 WebGUI 源码
 │   ├── fetch-plugin.sh                    # 仅下载 + 校验 + 解包（审计用）
 │   ├── lint-plg.sh                        # 对 .plg 做静态检查
-│   ├── make-icon.py                       # 重新生成插件图标
+│   ├── make-icon.py                       # 由 icon.svg 渲染插件图标
 │   └── verify-release.sh                  # 校验哈希与包内结构
 └── .github/
     ├── workflows/build.yml                # CI：构建、lint、verify、可复现性校验

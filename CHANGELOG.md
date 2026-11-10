@@ -23,6 +23,16 @@ the WebGUI page.
 
 ## [Unreleased]
 
+### Changed
+
+- The packaged plugin icon is now rendered from `icon.svg` instead of being
+  drawn a second time by the script. The PNG that the script produced had
+  drifted from the SVG: it filled the cube with translucent faces and put it
+  at a different place, and it had hard edges because Pillow does not anti
+  alias. The script now parses the SVG and renders it, so the two cannot
+  differ, and it fails when the SVG uses a construct it cannot draw
+  instead of quietly producing an icon that does not match
+
 ## [20261110] - 2026-11-10
 
 The bundled `docker-model-plugin` stays at 1.2.9. This release publishes the
