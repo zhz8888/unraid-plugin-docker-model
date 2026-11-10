@@ -35,27 +35,18 @@ the WebGUI page.
 
 ## [20261110] - 2026-11-10
 
-The bundled `docker-model-plugin` stays at 1.2.9. This release publishes the
-WebGUI page and the result of a second code review: the action endpoint now
-requires the request token of the page and compares the full origin, the
-build reads the right package out of the apt index and keeps the artifacts of
-the previous build when a pack fails, and a double click can no longer start
-two installs of the model runner.
+The bundled `docker-model-plugin` stays at 1.2.9. This release republishes the
+WebGUI page as a card in the Settings page and the result of a second code
+review: the action endpoint now requires the request token of the page and
+compares the full origin, the build reads the right package out of the apt
+index and keeps the artifacts of the previous build when a pack fails, and a
+double click can no longer start two installs of the model runner.
 
 ### Added
 
 - WebGUI page under `Settings → User Utilities → Docker Model Runner`: a card
   grid that reports the bundled CLI version, the Model Runner state and the
   locally available models, and can deploy or remove the Model Runner
-- Plugin icon and a `README.md` in the plugin directory, so the Plugins tab
-  shows a real icon and a real description
-- `src/` — the Slackware package source tree (package description, install
-  hook, WebGUI page), assembled into the txz by the build
-- `ca_profile.xml` and `ca/unraid-plugin-docker-model.xml` — the files the
-  Community Applications submission needs
-- `scripts/make-icon.py` — regenerates the plugin icon
-- `docs/05-unraid-plugin-conventions.md` — rule by rule mapping of the
-  official Unraid plugin rules onto this plugin
 - The WebGUI page follows the language of the Unraid WebGUI. The plugin ships
   its own translation files in `locales/` — `en_US.json` as the English base
   and `zh_CN.json` as the Simplified Chinese translation — and every user
@@ -63,31 +54,6 @@ two installs of the model runner.
 - `scripts/check-locales.py` — checks that every locale file is valid JSON and
   covers exactly the keys of `en_US.json`. It runs from the `make lint`
   target and from `scripts/verify-release.sh`
-
-### Fixed
-
-- The plugin version is no longer tied to the upstream version. It used to be,
-  which meant that Unraid compared `1.2.9` with `1.2.10` byte-wise, judged the
-  new release to be *older* and refused the upgrade. The version is now date
-  based, and the upstream version is recorded separately.
-- The install script no longer exits non-zero on a recoverable error. The
-  Unraid installer moves a `.plg` to `/boot/config/plugins-error/` when the
-  install script fails, and does not register the plugin, so the user was left
-  without an Uninstall button in the WebGUI and without a retry at the next
-  boot.
-- The install script now removes stale copies of the binary from every other
-  directory the Docker CLI searches. The first match wins, so a leftover copy
-  shadowed the installed one.
-- The install script now removes superseded packages from the flash cache,
-  which previously grew with every release.
-- The WebGUI page showed `unknown` for the plugin version, the bundled
-  docker-model version and the upstream artifact. The keys of `plugin.info` are
-  upper case (`PLUGIN_VERSION`) while the page reads lower case
-  (`plugin_version`), so every field fell back to its placeholder. The reader
-  now normalises the keys. `verify-release.sh` checks that every field the
-  page shows can be resolved that way: the previous check compared the upper
-  case keys of the file with the plugin file and passed while the page was
-  broken
 
 ### Changed
 
@@ -110,29 +76,17 @@ two installs of the model runner.
   official plugins: a bold title and a short paragraph, instead of a heading
   with its own sections. The usage and the caveats moved to the WebGUI page
   and to the repository README, where they belong
-- The `.plg` now uses XML entities and the attribute set the Unraid installer
-  and the WebGUI actually read: `name`, `author`, `version`, `pluginURL`,
-  `support`, `min`, `launch` and `icon`.
-- The Slackware package version is the plugin version, so `upgradepkg` sees an
-  upgrade when the plugin is repackaged.
-- The mirrored `.plg` no longer coexists with the canonical one: the canonical
-  variant removes it on the next boot, the way the official Tailscale plugin
-  removes its preview build.
-- `lint-plg.sh` checks the official conventions: required attributes, the
-  version scheme, the changelog layout, SHA256 on every download, the install
-  and remove scripts, and the absence of a non-zero exit.
-- `verify-release.sh` checks the package layout, the build metadata, the
-  binary checksum pinned in the `.plg`, and that the `launch` target resolves
-  to a page inside the package.
-- `scripts/check-php-syntax.py` checks the WebGUI sources for unbalanced
-  braces and unterminated strings, so a typo in the page does not break the
-  Settings tab.
-- The build retries the downloads in an explicit loop. `curl --retry` does not
-  cover TLS handshake failures, so a single flaky connection used to abort the
-  build.
 
 ### Fixed
 
+- The WebGUI page showed `unknown` for the plugin version, the bundled
+  docker-model version and the upstream artifact. The keys of `plugin.info` are
+  upper case (`PLUGIN_VERSION`) while the page reads lower case
+  (`plugin_version`), so every field fell back to its placeholder. The reader
+  now normalises the keys. `verify-release.sh` checks that every field the
+  page shows can be resolved that way: the previous check compared the upper
+  case keys of the file with the plugin file and passed while the page was
+  broken
 - The action endpoint requires the request token of the page in addition to
   the origin check, and the check compares the scheme, host and port of the
   origin instead of the host alone. A request without `Origin` and without
@@ -161,8 +115,9 @@ two installs of the model runner.
 
 ## [20261106] - 2026-11-06
 
-The bundled `docker-model-plugin` is unchanged at 1.2.9: this is a repackaging
-release that fixes the WebGUI layer, the package build and the release checks.
+The bundled `docker-model-plugin` is unchanged at 1.2.9: this release publishes
+the WebGUI page and fixes the WebGUI layer, the package build and the
+release checks.
 
 ### Added
 
@@ -176,6 +131,18 @@ release that fixes the WebGUI layer, the package build and the release checks.
 - The upstream check verifies that the pinned version exists in the apt index
   and that `Makefile` agrees with `scripts/build-plugin.sh`, and
   `verify-release.sh` checks the new status endpoint
+- WebGUI page under `Settings → Docker Model Runner`: it reports the bundled
+  CLI version, the Model Runner state and the models that are available
+  locally, and it can deploy or remove the Model Runner
+- Plugin icon and a `README.md` in the plugin directory, so the Plugins tab
+  shows a real icon and a real description
+- `src/` — the Slackware package source tree (package description, install
+  hook, WebGUI page), assembled into the txz by the build
+- `ca_profile.xml` and `ca/unraid-plugin-docker-model.xml` — the files the
+  Community Applications submission needs
+- `scripts/make-icon.py` — regenerates the plugin icon
+- `docs/05-unraid-plugin-conventions.md` — rule by rule mapping of the
+  official Unraid plugin rules onto this plugin
 
 ### Changed
 
@@ -194,6 +161,26 @@ release that fixes the WebGUI layer, the package build and the release checks.
   current CA template uses for plugins, instead of `<Containers>`
 - The `<CHANGES>` block of the `.plg` is generated from this file at build
   time, so a release no longer repeats the notes of an older one
+- The `.plg` now uses XML entities and the attribute set the Unraid installer
+  and the WebGUI actually read: `name`, `author`, `version`, `pluginURL`,
+  `support`, `min`, `launch` and `icon`.
+- The Slackware package version is the plugin version, so `upgradepkg` sees an
+  upgrade when the plugin is repackaged.
+- The mirrored `.plg` no longer coexists with the canonical one: the canonical
+  variant removes it on the next boot, the way the official Tailscale plugin
+  removes its preview build.
+- `lint-plg.sh` checks the official conventions: required attributes, the
+  version scheme, the changelog layout, SHA256 on every download, the install
+  and remove scripts, and the absence of a non-zero exit.
+- `verify-release.sh` checks the package layout, the build metadata, the
+  binary checksum pinned in the `.plg`, and that the `launch` target resolves
+  to a page inside the package.
+- `scripts/check-php-syntax.py` checks the WebGUI sources for unbalanced
+  braces and unterminated strings, so a typo in the page does not break the
+  Settings tab.
+- The build retries the downloads in an explicit loop. `curl --retry` does not
+  cover TLS handshake failures, so a single flaky connection used to abort the
+  build.
 
 ### Fixed
 
@@ -212,6 +199,20 @@ release that fixes the WebGUI layer, the package build and the release checks.
   where to look
 - The result and status panels are built with `textContent` instead of
   `innerHTML`, because the message can carry the raw docker output
+- The plugin version is no longer tied to the upstream version. It used to be,
+  which meant that Unraid compared `1.2.9` with `1.2.10` byte-wise, judged the
+  new release to be *older* and refused the upgrade. The version is now date
+  based, and the upstream version is recorded separately.
+- The install script no longer exits non-zero on a recoverable error. The
+  Unraid installer moves a `.plg` to `/boot/config/plugins-error/` when the
+  install script fails, and does not register the plugin, so the user was left
+  without an Uninstall button in the WebGUI and without a retry at the next
+  boot.
+- The install script now removes stale copies of the binary from every other
+  directory the Docker CLI searches. The first match wins, so a leftover copy
+  shadowed the installed one.
+- The install script now removes superseded packages from the flash cache,
+  which previously grew with every release.
 
 ### Removed
 
