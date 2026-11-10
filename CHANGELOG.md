@@ -23,6 +23,15 @@ the WebGUI page.
 
 ## [Unreleased]
 
+## [20261110] - 2026-11-10
+
+The bundled `docker-model-plugin` stays at 1.2.9. This release publishes the
+WebGUI page and the result of a second code review: the action endpoint now
+requires the request token of the page and compares the full origin, the
+build reads the right package out of the apt index and keeps the artifacts of
+the previous build when a pack fails, and a double click can no longer start
+two installs of the model runner.
+
 ### Added
 
 - WebGUI page under `Settings → User Utilities → Docker Model Runner`: a card
@@ -231,6 +240,7 @@ release that fixes the WebGUI layer, the package build and the release checks.
   that the direct and the mirrored variant reference the same package and
   checksum
 
-[Unreleased]: https://github.com/zhz8888/unraid-plugin-docker-model/compare/20261106...HEAD
+[Unreleased]: https://github.com/zhz8888/unraid-plugin-docker-model/compare/20261110...HEAD
+[20261110]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261110
 [20261106]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261106
 [20261027]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261027
