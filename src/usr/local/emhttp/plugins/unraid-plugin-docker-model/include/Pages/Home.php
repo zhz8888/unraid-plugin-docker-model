@@ -106,6 +106,9 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
 (function () {
     var statusEndpoint = '<?php echo dmr_esc($statusEndpoint); ?>';
     var actionEndpoint = '<?php echo dmr_esc($actionEndpoint); ?>';
+    // Read by dmr_csrf_valid() in the action endpoint: a page of another
+    // origin cannot read the file the token comes from.
+    var actionToken = '<?php echo dmr_esc(dmr_csrf_token()); ?>';
     var t = <?php echo dmr_js_translations(array(
         'state.checking',
         'state.loading',
@@ -246,7 +249,7 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
 
     function runAction(action) {
         showResult(t['action.working'], '');
-        $.post(actionEndpoint, {action: action}, function (data) {
+        $.post(actionEndpoint, {action: action, token: actionToken}, function (data) {
             var message = (data && data.message) ? data.message : t['action.done'];
             showResult(message, t['action.refreshed']);
             window.setTimeout(loadStatus, 3000);

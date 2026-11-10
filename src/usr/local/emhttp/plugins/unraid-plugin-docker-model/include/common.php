@@ -212,6 +212,130 @@ function dmr_esc($value)
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/**
+ * The file that holds the request token of this installation.
+ *
+ * /var/run is preferred because it is cleared on every boot, /tmp is the
+ * fallback of a host where the WebGUI process may not write to it.
+ *
+ * @return string
+ */
+function dmr_csrf_path()
+{
+    foreach (array('/var/run', '/tmp') as $dir) {
+        if (is_dir($dir) && is_writable($dir)) {
+            return $dir . '/unraid-plugin-docker-model.csrf';
+        }
+    }
+
+    return rtrim(sys_get_temp_dir(), '/') . '/unraid-plugin-docker-model.csrf';
+}
+
+/**
+ * The token that proves a write request came from the page of this plugin.
+ *
+ * The action endpoint changes the state of the box, so it must not run a
+ * request that a foreign page triggered. The Origin/Referer check of the
+ * endpoint is not enough on its own: a browser may omit both headers and a
+ * same-host page on another port passes a comparison of the host alone. The
+ * token lives in a file outside the web root that only the PHP process can
+ * read, the page embeds it and the endpoint compares it with hash_equals(),
+ * so a request from another origin fails even without an Origin header.
+ *
+ * The token is created on first use and reused afterwards, so a page that was
+ * opened before a restart still matches. An empty return value means the
+ * token could not be stored; dmr_csrf_valid() then falls back to the origin
+ * check instead of locking the user out of the page.
+ *
+ * @return string
+ */
+function dmr_csrf_token()
+{
+    static $token = null;
+
+    if ($token !== null) {
+        return $token;
+    }
+
+    $path = dmr_csrf_path();
+
+    $existing = is_readable($path) ? trim((string) @file_get_contents($path)) : '';
+    if (preg_match('/^[0-9a-f]{64}$/', $existing)) {
+        $token = $existing;
+
+        return $token;
+    }
+
+    try {
+        $candidate = bin2hex(random_bytes(32));
+    } catch (Exception $e) {
+        // No CSPRNG on this host: a weaker value is still better than none.
+        $candidate = hash('sha256', uniqid('', true) . microtime(true));
+    }
+
+    // 'x' creates the file exclusively, so two concurrent first requests agree
+    // on the token of the winner instead of overwriting each other.
+    $handle = @fopen($path, 'x');
+    if ($handle !== false) {
+        fwrite($handle, $candidate . "\n");
+        fclose($handle);
+        @chmod($path, 0600);
+
+        $token = $candidate;
+
+        return $token;
+    }
+
+    // The file exists but does not hold a token yet, or it was written
+    // between the read above and this call: reuse what is there now and only
+    // overwrite a file that still is not a token. Without that a truncated
+    // file would disable the check until the next reboot.
+    $existing = is_readable($path) ? trim((string) @file_get_contents($path)) : '';
+    if (preg_match('/^[0-9a-f]{64}$/', $existing)) {
+        $token = $existing;
+
+        return $token;
+    }
+
+    if (@file_put_contents($path, $candidate . "\n") !== false) {
+        @chmod($path, 0600);
+        $token = $candidate;
+
+        return $token;
+    }
+
+    $token = '';
+
+    return $token;
+}
+
+/**
+ * Whether the request carries the token of this installation.
+ *
+ * An empty expected token means the token file could not be written, which
+ * only happens on a host where neither /var/run nor /tmp is writable. The
+ * check is skipped in that case rather than turning the page into a set of
+ * buttons that always fails.
+ *
+ * @param mixed $candidate
+ *
+ * @return bool
+ */
+function dmr_csrf_valid($candidate)
+{
+    $expected = dmr_csrf_token();
+    if ($expected === '') {
+        return true;
+    }
+
+    $candidate = is_string($candidate) ? $candidate : '';
+    if ($candidate === '') {
+        return false;
+    }
+
+    return hash_equals($expected, $candidate);
+}
+
 
 /**
  * The locale of the Unraid WebGUI, for example "zh_CN".

@@ -68,6 +68,7 @@
         "unknown": "未知操作。",
         "cross_origin": "该请求不是来自 Unraid WebGUI。",
         "post_only": "只支持 POST 请求。",
+        "bad_token": "请求被拒绝：安全令牌缺失或已过期，请刷新页面后重试。",
         "not_installed": "docker model 命令行插件尚未安装，请先重新安装本插件。",
         "could_not_start": "无法启动该操作，详情请查看 %s。"
     },

@@ -68,6 +68,7 @@
         "unknown": "Unknown action.",
         "cross_origin": "The request did not come from the Unraid WebGUI.",
         "post_only": "Only POST is supported.",
+        "bad_token": "The request was rejected: its security token is missing or expired. Reload the page and try again.",
         "not_installed": "The docker model CLI plugin is not installed. Reinstall the plugin first.",
         "could_not_start": "The action could not be started. See %s for details."
     },

@@ -8,6 +8,12 @@
  * The endpoint only accepts a fixed set of action names. The command that
  * belongs to an action is defined here, never taken from the request, so no
  * request value ever reaches the shell.
+ *
+ * Two guards sit in front of the whitelist. dmr_request_is_same_origin()
+ * compares scheme, host and port of the Origin/Referer with the host the
+ * request was addressed to, and dmr_csrf_valid() requires the token that the
+ * page reads from a file outside the web root. The token is what stops a
+ * page of another origin: it cannot read that file.
  */
 
 require_once dirname(__DIR__) . '/common.php';
@@ -15,45 +21,102 @@ require_once dirname(__DIR__) . '/common.php';
 header('Content-Type: application/json');
 
 /**
+ * Split an absolute URL into the three parts that identify its origin.
+ *
+ * A port that the URL omits falls back to the default of its scheme, so
+ * "http://nas" and "http://nas:80" describe the same origin. Without that
+ * normalisation a check that only compares the host accepts a page of the
+ * same host on another port, which is a different origin for the browser.
+ *
+ * @param string $url
+ *
+ * @return array{scheme:string,host:string,port:int}|null
+ */
+function dmr_url_origin($url)
+{
+    $scheme = parse_url($url, PHP_URL_SCHEME);
+    $host = parse_url($url, PHP_URL_HOST);
+    if (!is_string($scheme) || $scheme === '' || !is_string($host) || $host === '') {
+        return null;
+    }
+
+    $scheme = strtolower($scheme);
+    $port = parse_url($url, PHP_URL_PORT);
+    if (!is_int($port)) {
+        $port = $scheme === 'https' ? 443 : 80;
+    }
+
+    return array('scheme' => $scheme, 'host' => strtolower($host), 'port' => $port);
+}
+
+/**
+ * The origin the browser addressed, taken from the Host header.
+ *
+ * The scheme comes from HTTPS or, when a reverse proxy terminates TLS, from
+ * X-Forwarded-Proto. Unraid itself serves the WebGUI over plain HTTP, so the
+ * proxy header only matters for the routers that wrap it.
+ *
+ * @return array{scheme:string,host:string,port:int}|null
+ */
+function dmr_request_origin()
+{
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+    if (!preg_match('/^(\[[^\]]+\]|[^:]+)(?::(\d+))?$/', $host, $matches)) {
+        return null;
+    }
+
+    $scheme = 'http';
+    if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') {
+        $scheme = 'https';
+    } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+        $forwarded = explode(',', (string) $_SERVER['HTTP_X_FORWARDED_PROTO']);
+        if (strtolower(trim($forwarded[0])) === 'https') {
+            $scheme = 'https';
+        }
+    }
+
+    $port = isset($matches[2]) && $matches[2] !== ''
+        ? (int) $matches[2]
+        : ($scheme === 'https' ? 443 : 80);
+
+    return array('scheme' => $scheme, 'host' => strtolower($matches[1]), 'port' => $port);
+}
+
+/**
  * Whether the request comes from a page of this WebGUI.
  *
  * The endpoint changes state (it deploys and removes the Model Runner
  * container), so a page from another origin must not be able to trigger it.
- * The check is deliberately permissive: a request without an Origin/Referer
- * header is accepted, only a mismatching value is rejected.
+ * A request without Origin and without Referer is rejected: a browser sends
+ * Origin on a POST, so a request without one is a script, and scripts have no
+ * reason to drive this endpoint. The token of dmr_csrf_valid() is checked as
+ * well, because this comparison cannot see a page that the browser itself
+ * considers same-origin.
  *
  * @return bool
  */
 function dmr_request_is_same_origin()
 {
-    $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
     $source = (string) ($_SERVER['HTTP_ORIGIN'] ?? ($_SERVER['HTTP_REFERER'] ?? ''));
+    if ($source === '') {
+        return false;
+    }
 
-    if ($host === '' || $source === '') {
+    $self = dmr_request_origin();
+    if ($self === null) {
+        // No usable Host header: there is nothing to compare against, so the
+        // request is only held to the token check.
         return true;
     }
 
-    $sourceHost = parse_url($source, PHP_URL_HOST);
-    if (!is_string($sourceHost) || $sourceHost === '') {
+    $foreign = dmr_url_origin($source);
+    if ($foreign === null) {
         return false;
     }
 
-    $hostOnly = $host;
-    $hostPort = '';
-    if (preg_match('/^(.+):(\d+)$/', $host, $matches)) {
-        $hostOnly = $matches[1];
-        $hostPort = $matches[2];
-    }
-    if ($sourceHost !== $hostOnly) {
-        return false;
-    }
-
-    $sourcePort = parse_url($source, PHP_URL_PORT);
-    if ($sourcePort !== null && $sourcePort !== false && $hostPort !== '') {
-        return (string) $sourcePort === $hostPort;
-    }
-
-    return true;
+    return $self['scheme'] === $foreign['scheme']
+        && $self['host'] === $foreign['host']
+        && $self['port'] === $foreign['port'];
 }
 
 /**
@@ -100,14 +163,17 @@ $commands = array(
 );
 
 $ok = false;
-$message = 'Unknown action.';
+$message = dmr_t('action.unknown');
 
-if (!dmr_request_is_same_origin()) {
-    http_response_code(403);
-    $message = dmr_t('action.cross_origin');
-} elseif (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     http_response_code(405);
     $message = dmr_t('action.post_only');
+} elseif (!dmr_request_is_same_origin()) {
+    http_response_code(403);
+    $message = dmr_t('action.cross_origin');
+} elseif (!dmr_csrf_valid($_POST['token'] ?? '')) {
+    http_response_code(403);
+    $message = dmr_t('action.bad_token');
 } else {
     $action = isset($_POST['action']) ? (string) $_POST['action'] : '';
 
