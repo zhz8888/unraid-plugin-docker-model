@@ -5,8 +5,8 @@
  * Copyright (C) 2026 zhz8888
  * SPDX-License-Identifier: MIT
  *
- * The status tab renders its static part from include/Pages/Status.php and
- * fetches the values that need a `docker` call here, so a slow or wedged
+ * The page (include/Pages/Home.php) renders the static part and fetches the
+ * values that need a `docker` call from this endpoint, so a slow or wedged
  * Docker daemon never delays the WebGUI page itself. Every call is bounded
  * by the timeout of dmr_exec().
  */
@@ -34,9 +34,21 @@ if ($cliText === '') {
     $cliText = dmr_t('cli.no_output');
 }
 
-echo json_encode(array(
+$payload = array(
     'binary' => $binary ? 'installed' : 'missing',
     'cli' => $cliText,
     'runner' => dmr_runner_running() ? 'running' : 'not running',
     'models' => dmr_models(),
-));
+);
+
+// The values come from the output of external commands, so a byte that is not
+// valid UTF-8 is possible. Without the substitute flag json_encode() returns
+// false, the body would be empty and the page would report an unknown state
+// instead of the data that was read successfully.
+$json = json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
+if (!is_string($json)) {
+    http_response_code(500);
+    $json = '{"binary":"missing","cli":"","runner":"not running","models":[]}';
+}
+
+echo $json;
