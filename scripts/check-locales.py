@@ -24,7 +24,7 @@ def flatten(node, prefix=''):
     for key, value in node.items():
         name = prefix + key if not prefix else prefix + '.' + key
         if isinstance(value, dict):
-            result.update(flatten(value, name + '.'))
+            result.update(flatten(value, name))
         else:
             result[name] = value
     return result
