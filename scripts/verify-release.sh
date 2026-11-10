@@ -276,12 +276,18 @@ PY
     fi
   fi
 
-  # 5. Sanity-check the binary size (around 28 MB)
-  SIZE=$(wc -c < "${TMP}/usr/libexec/docker/cli-plugins/docker-model" | tr -d ' ')
-  if [ "${SIZE}" -gt 20000000 ] && [ "${SIZE}" -lt 40000000 ]; then
-    ok "binary size looks sane: ${SIZE} bytes"
-  else
-    bad "binary size out of range: ${SIZE} bytes (expected 20-40 MB)"; FAIL=1
+  # 5. Sanity-check the binary size (around 28 MB). The file can be missing
+  #    when the package is broken; check_exec above already recorded that
+  #    failure, so the size is only checked when there is something to
+  #    measure. Without the guard the `set -e` of this script aborts at the
+  #    redirect and the summary below is never printed.
+  if [ -f "${TMP}/usr/libexec/docker/cli-plugins/docker-model" ]; then
+    SIZE=$(wc -c < "${TMP}/usr/libexec/docker/cli-plugins/docker-model" | tr -d ' ')
+    if [ "${SIZE}" -gt 20000000 ] && [ "${SIZE}" -lt 40000000 ]; then
+      ok "binary size looks sane: ${SIZE} bytes"
+    else
+      bad "binary size out of range: ${SIZE} bytes (expected 20-40 MB)"; FAIL=1
+    fi
   fi
 
   # 6. Compare against the unpacked deb, when pkg/fetch is still around
