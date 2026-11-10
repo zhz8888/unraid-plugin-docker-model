@@ -123,6 +123,7 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         'state.runner_stopped',
         'state.models_count',
         'models.empty',
+        'cli.unavailable',
         'action.working',
         'action.done',
         'action.refreshed',
@@ -194,7 +195,7 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         $.post(statusEndpoint, {}, function (data) {
             var binary = (data && data.binary) ? data.binary : 'missing';
             var runner = (data && data.runner) ? data.runner : 'not running';
-            var cli = (data && data.cli) ? data.cli : 'unavailable';
+            var cli = (data && data.cli) ? data.cli : t['cli.unavailable'];
             var models = (data && data.models) ? data.models : [];
 
             var binaryOk = binary === 'installed';
@@ -218,7 +219,7 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
 
             renderModels(models);
         }, 'json').fail(function () {
-            setText('dmr-status-cli', 'unavailable');
+            setText('dmr-status-cli', t['cli.unavailable']);
             setText('dmr-status-binary', t['state.unknown']);
             setPill('dmr-pill-binary', t['state.unknown'], 'warn');
             setPill('dmr-pill-runner', t['state.unknown'], 'warn');
@@ -247,7 +248,19 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         }
     }
 
+    var actionInFlight = false;
+
     function runAction(action) {
+        if (actionInFlight) {
+            return;
+        }
+        actionInFlight = true;
+        // The command runs in the background and the reload below is what
+        // re-enables the buttons, so disable them here as well: a double
+        // click would otherwise start two installs of the same runner.
+        setButton('dmr-btn-cpu', false);
+        setButton('dmr-btn-gpu', false);
+        setButton('dmr-btn-remove', false);
         showResult(t['action.working'], '');
         $.post(actionEndpoint, {action: action, token: actionToken}, function (data) {
             var message = (data && data.message) ? data.message : t['action.done'];
@@ -255,6 +268,9 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
             window.setTimeout(loadStatus, 3000);
         }, 'json').fail(function () {
             showResult(t['action.failed'], t['action.log_hint']);
+            loadStatus();
+        }).always(function () {
+            actionInFlight = false;
         });
     }
 
