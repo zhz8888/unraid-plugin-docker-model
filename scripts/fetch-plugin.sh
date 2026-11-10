@@ -35,7 +35,9 @@ curl -fsSL --retry 3 --max-time 120 "${APT_BASE}/${APT_DIST}/Packages" -o "${OUT
 log "looking up docker-model-plugin ${DMR_VERSION} ..."
 META=$(awk -v ver="${DMR_VERSION}" '
   function ver_match(v) { return v == ver || index(v, ver "-") == 1 }
-  /^Package: docker-model-plugin$/ { inblk=1; hit=0; next }
+  # Every Package header resets the block, otherwise the fields of the
+  # next package are reported when the requested version is missing.
+  /^Package: / { inblk = ($2 == "docker-model-plugin"); hit = 0; next }
   inblk && /^Version: / { if (ver_match($2)) hit=1; next }
   inblk && hit && /^(Filename|Size|SHA256): / { print $1, $2; next }
   inblk && /^$/ { if (hit) exit }
