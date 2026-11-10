@@ -27,7 +27,10 @@ if (!defined('DMR_CLI_BINARY')) {
  * Read the build metadata that the package ships next to this file.
  *
  * The file is generated at build time and holds the plugin version and the
- * version of the bundled upstream docker-model release.
+ * version of the bundled upstream docker-model release. Its keys are upper
+ * case, the fields returned here are lower case, so the keys are normalised
+ * on the way in. scripts/verify-release.sh checks that every field the page
+ * shows can be resolved that way.
  *
  * @return array<string,string>
  */
@@ -56,8 +59,12 @@ function dmr_plugin_info()
         $parsed = parse_ini_file($file, false, INI_SCANNER_RAW);
         if (is_array($parsed)) {
             foreach ($parsed as $key => $value) {
+                // The keys of the file are upper case, the fields of this
+                // function are lower case, so they are normalised here.
+                // Without that the page reports "unknown" for every version,
+                // because the fields would never be found.
                 // RAW mode keeps the surrounding quotes of a quoted value.
-                $info[$key] = trim((string) $value, "\"'");
+                $info[strtolower((string) $key)] = trim((string) $value, "\"'");
             }
         }
     }

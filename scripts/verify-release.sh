@@ -227,6 +227,42 @@ PY
     bad "plugin.info missing"; FAIL=1
   fi
 
+  # 3a. The page reads the build metadata from plugin.info, with the keys
+  #     normalised to lower case. The check below mirrors that
+  #     normalisation and fails when a field the page shows cannot be
+  #     resolved. Without it the page reports "unknown" for every version
+  #     while this script still passes, because the greps above look at the
+  #     upper case keys of the file.
+  log "checking that the page can read the build metadata..."
+  if python3 - "${INFO}" <<'PY'
+import sys
+
+info = {}
+with open(sys.argv[1], encoding='utf-8') as handle:
+    for line in handle:
+        line = line.strip()
+        if not line or line.startswith((';', '#')) or '=' not in line:
+            continue
+        key, value = line.split('=', 1)
+        info[key.strip().lower()] = value.strip().strip('"\'')
+
+missing = [key for key in ('plugin_version', 'upstream_version',
+                           'upstream_source', 'binary_sha256')
+           if not info.get(key)]
+
+if missing:
+    print('ERROR the page cannot read: ' + ', '.join(missing))
+    sys.exit(1)
+
+print('  plugin version: %s, bundled docker-model: %s'
+      % (info['plugin_version'], info['upstream_version']))
+PY
+  then
+    ok "the page reads the build metadata"
+  else
+    bad "the page cannot read the build metadata"; FAIL=1
+  fi
+
   # 4. The binary in the package must match the checksum pinned in the plg
   if [ -n "${BINARY_SHA}" ] && [ -f "${TMP}/usr/libexec/docker/cli-plugins/docker-model" ]; then
     ACTUAL_BIN=$(sha256_of "${TMP}/usr/libexec/docker/cli-plugins/docker-model")

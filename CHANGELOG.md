@@ -61,6 +61,14 @@ the WebGUI page.
   shadowed the installed one.
 - The install script now removes superseded packages from the flash cache,
   which previously grew with every release.
+- The WebGUI page showed `unknown` for the plugin version, the bundled
+  docker-model version and the upstream artifact. The keys of `plugin.info` are
+  upper case (`PLUGIN_VERSION`) while the page reads lower case
+  (`plugin_version`), so every field fell back to its placeholder. The reader
+  now normalises the keys. `verify-release.sh` checks that every field the
+  page shows can be resolved that way: the previous check compared the upper
+  case keys of the file with the plugin file and passed while the page was
+  broken
 
 ### Changed
 
