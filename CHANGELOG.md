@@ -75,7 +75,9 @@ cards.
   parameters, quantization, architecture, size and creation time. Every row has
   an **Update** and a **Remove** action: Update pulls the same tag again, which
   reuses the layers that did not change, and Remove deletes the model from the
-  local model volume after a confirmation. Both run in the background and log
+  local model volume after a confirmation. Architecture and creation date are
+  the second line of the model cell, so the action buttons stay visible on the
+  half width cards of the grid. Both run in the background and log
   to `/var/log/docker-model-runner-model.log`; the row buttons are disabled
   while a request runs, and the table refreshes shortly after the answer and
   once more later, so a finished pull shows up without a reload
@@ -93,8 +95,11 @@ cards.
 - `sheets/DockerModelRunner.css` is rewritten for that layout: typography,
   spacing, a section heading inside a card, notice and raw-output blocks, the
   field row of the address select, and warning styled Stop and Uninstall
-  buttons. It still uses only theme variables with fallbacks, so it follows
-  the light and the dark theme
+  buttons. The type scale is calibrated for the 10px root of the WebGUI
+  (`html { font-size: 62.5% }`), so the page text is 14px instead of the 10px
+  the old `rem` values produced there, and it still grows with the font size
+  setting of the WebGUI. The stylesheet uses only theme variables with
+  fallbacks, so it follows the light and the dark theme
 - The status and action endpoints return the shape the new page needs.
   `Status.php` reports the parsed version fields, the state and the published
   ports of the runner, the local models and the stored listen address instead

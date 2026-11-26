@@ -77,9 +77,7 @@
         "col_name": "模型",
         "col_parameters": "参数",
         "col_quantization": "量化",
-        "col_architecture": "架构",
         "col_size": "大小",
-        "col_created": "创建时间",
         "col_actions": "操作"
     },
     "install": {

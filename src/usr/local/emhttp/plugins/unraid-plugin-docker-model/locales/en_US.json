@@ -77,9 +77,7 @@
         "col_name": "Model",
         "col_parameters": "Parameters",
         "col_quantization": "Quantization",
-        "col_architecture": "Architecture",
         "col_size": "Size",
-        "col_created": "Created",
         "col_actions": "Actions"
     },
     "install": {

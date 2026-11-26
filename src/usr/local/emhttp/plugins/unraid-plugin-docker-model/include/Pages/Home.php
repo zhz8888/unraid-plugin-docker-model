@@ -180,9 +180,7 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         'models.col_name',
         'models.col_parameters',
         'models.col_quantization',
-        'models.col_architecture',
         'models.col_size',
-        'models.col_created',
         'models.col_actions',
         'version.error',
         'action.working',
@@ -268,14 +266,12 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
     // update and remove buttons carry the identifier that the status endpoint
     // reported; the endpoint resolves it against the current list again, so a
     // page that is out of date cannot address a model that is gone.
-    var modelColumns = ['name', 'parameters', 'quantization', 'architecture', 'size', 'created', 'actions'];
+    var modelColumns = ['name', 'parameters', 'quantization', 'size', 'actions'];
     var modelHeaders = {
         name: 'models.col_name',
         parameters: 'models.col_parameters',
         quantization: 'models.col_quantization',
-        architecture: 'models.col_architecture',
         size: 'models.col_size',
-        created: 'models.col_created',
         actions: 'models.col_actions'
     };
 
@@ -290,6 +286,26 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         return cell;
     }
 
+    // A full tag such as gh-proxy.org/docker/ai/smollm2:360M-Q4_K_M is one
+    // long token. Without break opportunities the browser either overflows the
+    // cell or breaks the word at an arbitrary place, so <wbr> is added after
+    // each slash and colon.
+    function appendBrokenText(parent, text) {
+        var parts = String(text).split(/([\/:])/);
+        for (var i = 0; i < parts.length; i++) {
+            if (parts[i] === '') {
+                continue;
+            }
+            parent.appendChild(document.createTextNode(parts[i]));
+            if (i % 2 === 1) {
+                parent.appendChild(document.createElement('wbr'));
+            }
+        }
+    }
+
+    // Only the date is shown: the full timestamp would take most of the width
+    // of the column, and the exact time matters less than the day. The full
+    // value is in the title of the cell.
     function formatCreated(created) {
         if (!created) {
             return '';
@@ -298,7 +314,7 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         if (isNaN(date.getTime())) {
             return '';
         }
-        return date.toLocaleString();
+        return date.toLocaleDateString();
     }
 
     function modelActionButton(row, action) {
@@ -359,18 +375,37 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
 
             var nameCell = modelCell('td', 'dmr-table__name');
             var code = document.createElement('code');
-            code.textContent = row.name || row.tag || '';
+            appendBrokenText(code, row.name || row.tag || '');
             if (row.tag && row.tag !== row.name) {
                 code.title = row.tag;
             }
             nameCell.appendChild(code);
+
+            // Architecture and creation time are the second line of the name
+            // cell. As their own columns they made the table wider than the
+            // half width card and pushed the action buttons out of view.
+            var meta = [];
+            if (row.architecture) {
+                meta.push(row.architecture);
+            }
+            var createdText = formatCreated(row.created);
+            if (createdText) {
+                meta.push(createdText);
+            }
+            if (meta.length > 0) {
+                var metaLine = document.createElement('span');
+                metaLine.className = 'dmr-table__meta';
+                metaLine.textContent = meta.join(' · ');
+                if (row.created) {
+                    metaLine.title = new Date(row.created * 1000).toLocaleString();
+                }
+                nameCell.appendChild(metaLine);
+            }
             tr.appendChild(nameCell);
 
             tr.appendChild(modelCell('td', 'dmr-table__parameters', row.parameters || ''));
             tr.appendChild(modelCell('td', 'dmr-table__quantization', row.quantization || ''));
-            tr.appendChild(modelCell('td', 'dmr-table__architecture', row.architecture || ''));
             tr.appendChild(modelCell('td', 'dmr-table__size', row.size || ''));
-            tr.appendChild(modelCell('td', 'dmr-table__created', formatCreated(row.created)));
 
             var actions = modelCell('td', 'dmr-table__actions');
             actions.appendChild(modelActionButton(row, 'update'));
