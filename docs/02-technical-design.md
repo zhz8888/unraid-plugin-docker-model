@@ -94,10 +94,15 @@ flowchart TD
 转义，非法值直接拒绝保存。
 
 **设置存在哪**：`/boot/config/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.cfg`，
-INI 格式，只有一个键 `DMR_HOST`；写入时先写 `*.tmp` 再 `rename()`，掉电不会留下
-半个文件。它和缓存的安装包放在一起，重启后仍在，插件卸载后也保留（与
-`/boot/config/plugins/<name>/` 下其它文件一致）。文件缺失、读不出或值不是合法 IP
-时回退到默认 `0.0.0.0`。
+INI 格式包含 `DMR_HOST` 与 `DMR_API_KEY`；写入时先写 `*.tmp` 再 `rename()`，掉电不会
+留下半个文件，权限设为 `0600`。它和缓存的安装包放在一起，重启后仍在，插件卸载后
+也保留（与 `/boot/config/plugins/<name>/` 下其它文件一致）。文件缺失、读不出或值
+非法时，地址回退到 `0.0.0.0`，API Key 回退到 `local`；旧配置没有 API Key 时同样
+使用 `local`。
+
+API Key 是 OpenAI 兼容客户端的连接占位值，不是 runner 的鉴权开关。页面允许 1–128
+位字母、数字或 `. _ ~ + / = -`，空值恢复为 `local`；只传监听地址的旧请求不会覆盖
+已有 Key。Key 不进入任何 CLI 命令，`Status.php` 也不返回它。
 
 **改完要重建容器**：发布地址在容器创建时就固定了，改设置不会影响已经在跑的
 runner。页面因此有「重建 runner」按钮，执行

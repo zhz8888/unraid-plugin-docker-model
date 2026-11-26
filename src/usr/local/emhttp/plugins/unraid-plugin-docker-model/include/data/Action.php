@@ -12,6 +12,8 @@
  *
  * - the listen address of the runner, validated as an IP address by
  *   dmr_valid_host() and quoted with escapeshellarg() on top of that;
+ * - the API key of the local OpenAI-compatible client configuration, limited
+ *   to a safe token alphabet by dmr_valid_api_key() and never sent to a command;
  * - the model of a model action, resolved by dmr_resolve_model() against the
  *   identifiers that `docker model list` just printed. Only the identifier
  *   from that list reaches the command, so a crafted reference that is not a
@@ -214,15 +216,27 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     $action = isset($_POST['action']) ? (string) $_POST['action'] : '';
 
     if ($action === 'save-settings') {
-        // The settings are the only request values that are stored, and the
-        // only one that later ends up in a command line. An invalid value is
-        // refused instead of being stored, so the install command can never
-        // carry something the CLI would reject.
+        // Only the settings request stores values. The host is validated before
+        // it can reach a command; the API key is validated for safe persistence
+        // and is deliberately not passed to the runner, which has no key flag.
         $host = trim(isset($_POST['host']) ? (string) $_POST['host'] : '');
+        $values = array('host' => $host);
+        $apiKeyProvided = array_key_exists('api_key', $_POST);
+        $apiKey = '';
+        if ($apiKeyProvided) {
+            $submittedKey = $_POST['api_key'];
+            $apiKey = is_string($submittedKey) ? trim($submittedKey) : '';
+            if ($apiKey === '' && is_string($submittedKey)) {
+                $apiKey = 'local';
+            }
+            $values['api_key'] = $apiKey;
+        }
 
         if (!dmr_valid_host($host)) {
             $message = dmr_t('action.invalid_host');
-        } elseif (!dmr_save_settings(array('host' => $host))) {
+        } elseif ($apiKeyProvided && !dmr_valid_api_key($apiKey)) {
+            $message = dmr_t('action.invalid_api_key');
+        } elseif (!dmr_save_settings($values)) {
             $message = sprintf(dmr_t('action.save_failed'), DMR_CONFIG_FILE);
         } else {
             $ok = true;

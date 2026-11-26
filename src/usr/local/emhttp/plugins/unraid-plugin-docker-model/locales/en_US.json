@@ -30,6 +30,7 @@
         "cli_directory": "CLI directory",
         "installed_binary": "Installed binary",
         "listen_address": "Listen address",
+        "api_key": "API Key",
         "published_ports": "Published ports",
         "config_file": "Settings file"
     },
@@ -48,13 +49,16 @@
         "preset_lan": "All interfaces (0.0.0.0)",
         "preset_local": "Server only (127.0.0.1)",
         "preset_custom": "Custom address",
+        "show_key": "Show",
+        "hide_key": "Hide",
         "save": "Save",
         "recreate": "Recreate runner",
         "apply_hint": "A changed address takes effect when the runner is recreated; until then it keeps running on the old address.",
+        "api_key_hint": "Used by OpenAI-compatible clients; defaults to <code>local</code>. The runner does not validate this key or restrict API access.",
         "security": "The API has no authentication. Publish it on a trusted network only, or restrict port 12434 with a firewall.",
         "fixed_port": "The port is fixed at 12434, because the <code>docker model</code> CLI connects to that port on localhost.",
         "none": "not published",
-        "saved_hint": "Run Recreate runner to apply the address to the running container."
+        "saved_hint": "The API Key is ready for local clients. Recreate the runner only when the listen address changes."
     },
     "runner": {
         "intro": "The runner is a container that serves the models. It is pulled on demand.",
@@ -81,7 +85,9 @@
         "col_actions": "Actions"
     },
     "install": {
-        "hint": "The same commands from a terminal:"
+        "hint": "The same commands from a terminal:",
+        "client_title": "OpenAI-compatible client",
+        "client_hint": "Replace <code>&lt;NAS-IP&gt;</code> with the server address. The example follows the API Key above; the key is a client placeholder, not authentication."
     },
     "notes": {
         "registry": "<code>docker model pull</code> does not honour the <code>registry-mirrors</code> setting of <code>daemon.json</code>. On a restricted network pull through a proxy prefix, for example <code>docker model pull gh-proxy.org/docker/ai/smollm2:360M-Q4_K_M</code>.",
@@ -113,7 +119,8 @@
         "stop": "The Model Runner is being stopped in the background. The container is removed; the image and the model volume are kept. Progress is logged to /var/log/docker-model-runner-stop.log.",
         "uninstall": "The Model Runner is being removed in the background. The runner image and the model volume are kept. Progress is logged to /var/log/docker-model-runner-uninstall.log.",
         "reinstall": "The Model Runner is being recreated in the background to apply the listen address. Progress is logged to /var/log/docker-model-runner-reinstall.log.",
-        "settings_saved": "The listen address is saved as %s.",
+        "settings_saved": "Settings saved. Listen address: %s.",
+        "invalid_api_key": "Use 1–128 letters, digits, or . _ ~ + / = - for the API Key.",
         "invalid_host": "That is not a valid IPv4 or IPv6 address.",
         "save_failed": "The settings could not be written to %s.",
         "unknown": "Unknown action.",

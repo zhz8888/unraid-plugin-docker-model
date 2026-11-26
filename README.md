@@ -159,17 +159,18 @@ page is a grid of cards, one per function:
   (CPU only or GPU auto), **Stop** it or remove it. Stop removes the container
   and keeps the runner image and the model volume; every button is enabled only
   in the state it applies to;
-- **Network** — the address the runner API is published on, the ports the
-  running container is actually published on, the settings file, and the
-  **Save** and **Recreate runner** buttons (see
+- **Network** — the address the runner API is published on, the local client
+  API Key (default `local`), the ports the running container is actually
+  published on, the settings file, and the **Save** and **Recreate runner** buttons (see
   [Publishing the runner on the network](#publishing-the-runner-on-the-network));
 - **Local models** — a table of the models that are available locally, one row
   per tag, with the parameters, quantization, architecture, size and creation
   time. Every row can be updated (pull the same tag again; layers that did not
   change are reused) or removed after a confirmation. Both actions run in the
   background and log to `/var/log/docker-model-runner-model.log`;
-- **Installation** — the CLI directory, the CLI binary, the installed binary
-  and the equivalent terminal commands, including the stored `--host` address;
+- **Installation** — the CLI directory, the CLI binary, the installed binary,
+  the equivalent terminal commands (including the stored `--host` address), and
+  an OpenAI-compatible Python client example that uses the saved API Key;
 - **Notes** — the caveats that come with the runner.
 
 The six cards are equal sized: the grid stretches every card of a row to the
@@ -203,14 +204,22 @@ The **Network** card chooses the address:
 | `127.0.0.1` | the server only |
 | a custom IPv4 or IPv6 address | one specific interface |
 
-The value is validated as an IP address on the server before it is stored, and
+The address is validated as an IP address on the server before it is stored, and
 quoted with `escapeshellarg()` when it is appended to the command line; an
-invalid value is refused, not saved. It is the only request value the plugin
-stores, and the only one that later reaches a command line. The address lives
-in
-`/boot/config/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.cfg`,
-next to the cached package on the flash device, so it survives a reboot and,
-like the rest of that directory, a plugin removal.
+invalid value is refused, not saved. It is the only setting that reaches a
+command line. The address and API Key live in
+`/boot/config/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.cfg`
+as `DMR_HOST` and `DMR_API_KEY`. The file is written atomically with owner-only
+permissions (`0600`), next to the cached package on the flash device, so the
+settings survive a reboot and, like the rest of that directory, plugin removal.
+A missing `DMR_API_KEY` in an older configuration defaults to `local`.
+
+The **API Key** field is for OpenAI-compatible clients, which require an
+`api_key` value even though the local runner does not authenticate requests. It
+defaults to `local`, accepts 1–128 letters, digits or `. _ ~ + / = -`, and can be
+revealed with **Show**. Saving an empty field restores `local`. The Installation
+card's Python example follows the value in this field. The key is never passed
+to `docker model` and does not enable authentication.
 
 The address is part of the container definition, so a changed setting takes
 effect only on a new container: **Recreate runner** runs the command

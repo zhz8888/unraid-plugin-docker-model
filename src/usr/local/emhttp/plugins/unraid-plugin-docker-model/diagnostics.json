@@ -27,7 +27,6 @@
         }
     ],
     "files": [
-        "/boot/config/plugins/unraid-plugin-docker-model/",
         "/var/log/docker-model-runner-install.log"
     ],
     "system_diagnostics": true

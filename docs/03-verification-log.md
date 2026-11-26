@@ -314,3 +314,23 @@ sentiment analysis, topic modeling, and language translation.
 
 > 这次验证覆盖的是「页面结构与交互逻辑」，不是真实 Docker 守护进程的行为；后者仍需
 > 在真机上点一遍 Stop / 保存 / 重建 runner。
+
+### 8.4 本地 API Key 设置（2026-11-27）
+
+- 重新检查捆绑的 `docker-model` 1.2.9 二进制：没有 `--api-key` 参数，内置 OpenAI
+  示例也写明本地推理不需要 API Key。因此新增的 `DMR_API_KEY` 只是 OpenAI 兼容
+  客户端的连接占位值，默认 `local`，不声称开启 runner 鉴权，也不进入 CLI 命令。
+- 新增 `tests/settings.php`，37 项检查全部通过：默认值、合法/非法字符、128 位上限、
+  保存回读、空值恢复 `local`、只改地址时保留 Key、旧配置兼容、非法存储值回退，以及
+  含 `/` 的 Key 在 Python 客户端示例中按原样渲染。
+- `Action.php` 的 save-settings 场景通过：自定义 Key、默认 Key、非法字符串、数组型
+  请求值、只改地址时保留 Key、跨源拒绝；保存响应不回显 Key。
+- Playwright + 本地 PHP + 假 docker CLI：1440 / 1100 / 700 px、中英文共 7 次渲染通过，
+  卡片等高、无横向溢出、无控制台错误或失败请求。额外覆盖显示/隐藏、自定义 Key
+  保存、刷新后持久化、客户端示例同步、空值重置、非法值拒绝，以及 `Status.php` 不返回
+  Key。页面截图保存在 `.research/preview/shots/`。
+- 四个插件 PHP 文件与 `tests/settings.php` 通过 `php -l`；PHP 启发式语法检查、两份
+  108 键翻译文件检查和 `git diff --check` 通过。诊断包不再自动收集插件配置目录，
+  避免把客户端 API Key 放进支持诊断文件。
+
+> 本节为本地验证；该设置尚未在真实 Unraid 主机上端到端验证。

@@ -27,6 +27,7 @@ require_once dirname(__DIR__) . '/common.php';
 $info = dmr_plugin_info();
 $settings = dmr_settings();
 $host = $settings['host'];
+$apiKey = $settings['api_key'];
 // The address is one of the two presets, or the value of a custom entry. The
 // page keeps the value itself and only uses this flag to preselect the select.
 $preset = in_array($host, array('0.0.0.0', '127.0.0.1'), true) ? $host : 'custom';
@@ -103,6 +104,16 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
             . ($preset === 'custom' ? '' : ' hidden') . '>';
         echo '</div>';
         echo '</div>';
+        echo '<div class="dmr-field">';
+        echo '<label class="dmr-field__label" for="dmr-api-key">' . dmr_esc(dmr_t('label.api_key')) . '</label>';
+        echo '<div class="dmr-field__control">';
+        echo '<input type="password" id="dmr-api-key" class="dmr-input" value="' . dmr_esc($apiKey) . '"'
+            . ' maxlength="128" spellcheck="false" autocomplete="off" aria-describedby="dmr-api-key-hint">';
+        echo '<button type="button" class="button button-small" id="dmr-api-key-toggle" aria-controls="dmr-api-key"'
+            . ' aria-pressed="false">' . dmr_esc(dmr_t('network.show_key')) . '</button>';
+        echo '</div>';
+        echo '</div>';
+        echo '<p class="dmr-hint" id="dmr-api-key-hint">' . dmr_t('network.api_key_hint') . '</p>';
         echo dmr_kv(dmr_t('label.published_ports'), '<span class="dmr-muted">' . dmr_esc(dmr_t('state.checking')) . '</span>', 'dmr-runner-ports');
         echo dmr_kv(dmr_t('label.config_file'), '<code>' . dmr_esc(DMR_CONFIG_FILE) . '</code>');
         echo '<p class="dmr-hint">' . dmr_t('network.fixed_port') . '</p>';
@@ -137,6 +148,13 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
             . "\n" . 'docker model reinstall-runner --host ' . dmr_esc($host)
             . "\n" . 'docker model uninstall-runner'
             . "\n" . 'docker model list</pre>';
+        echo '<h3 class="dmr-section-title">' . dmr_esc(dmr_t('install.client_title')) . '</h3>';
+        echo '<pre class="dmr-code">from openai import OpenAI'
+            . "\n" . 'client = OpenAI('
+            . "\n" . '    base_url="http://&lt;NAS-IP&gt;:12434/engines/llama.cpp/v1",'
+            . "\n" . '    api_key=<span id="dmr-client-key">' . dmr_esc((string) json_encode($apiKey, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) . '</span>'
+            . "\n" . ')</pre>';
+        echo '<p class="dmr-hint">' . dmr_t('install.client_hint') . '</p>';
         echo dmr_card_close();
         ?>
 
@@ -189,6 +207,9 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         'action.failed',
         'action.log_hint',
         'action.invalid_host',
+        'action.invalid_api_key',
+        'network.show_key',
+        'network.hide_key',
         'network.none',
         'network.saved_hint',
     )); ?>;
@@ -451,6 +472,26 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         }
     }
 
+    function renderApiKey() {
+        var input = document.getElementById('dmr-api-key');
+        var example = document.getElementById('dmr-client-key');
+        if (input && example) {
+            example.textContent = JSON.stringify(input.value.replace(/^\s+|\s+$/g, '') || 'local');
+        }
+    }
+
+    function toggleApiKey() {
+        var input = document.getElementById('dmr-api-key');
+        var button = document.getElementById('dmr-api-key-toggle');
+        if (!input || !button) {
+            return;
+        }
+        var showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        button.textContent = showing ? t['network.show_key'] : t['network.hide_key'];
+        button.setAttribute('aria-pressed', showing ? 'false' : 'true');
+    }
+
     function loadStatus() {
         $.post(statusEndpoint, {}, function (data) {
             var binary = (data && data.binary) ? data.binary : 'missing';
@@ -596,7 +637,8 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
 
         var select = document.getElementById('dmr-host-select');
         var custom = document.getElementById('dmr-host-custom');
-        if (!select) {
+        var apiKeyInput = document.getElementById('dmr-api-key');
+        if (!select || !apiKeyInput) {
             return;
         }
 
@@ -606,14 +648,18 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
             return;
         }
 
+        var apiKey = apiKeyInput.value.replace(/^\s+|\s+$/g, '') || 'local';
+
         saving = true;
         showResult('dmr-settings-result', t['action.working'], '');
-        $.post(actionEndpoint, {action: 'save-settings', host: host, token: actionToken}, function (data) {
+        $.post(actionEndpoint, {action: 'save-settings', host: host, api_key: apiKey, token: actionToken}, function (data) {
             var ok = !!(data && data.ok);
             var message = (data && data.message) ? data.message : (ok ? t['action.done'] : t['action.failed']);
             showResult('dmr-settings-result', message, ok ? t['network.saved_hint'] : '');
             if (ok) {
                 settingsDirty = false;
+                apiKeyInput.value = apiKey;
+                renderApiKey();
                 loadStatus();
             }
         }, 'json').fail(function () {
@@ -644,6 +690,11 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
                 modelButton.getAttribute('data-dmr-model'));
             return;
         }
+        if (target.closest('#dmr-api-key-toggle')) {
+            event.preventDefault();
+            toggleApiKey();
+            return;
+        }
         var button = target.closest('[data-dmr-action]');
         if (button) {
             event.preventDefault();
@@ -669,7 +720,7 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         if (target.id === 'dmr-host-select') {
             settingsDirty = true;
             updateCustomField();
-        } else if (target.id === 'dmr-host-custom') {
+        } else if (target.id === 'dmr-host-custom' || target.id === 'dmr-api-key') {
             settingsDirty = true;
         }
     });
@@ -677,6 +728,9 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
     document.addEventListener('input', function (event) {
         if (event.target && event.target.id === 'dmr-host-custom') {
             settingsDirty = true;
+        } else if (event.target && event.target.id === 'dmr-api-key') {
+            settingsDirty = true;
+            renderApiKey();
         }
     });
 

@@ -30,6 +30,7 @@
         "cli_directory": "CLI 插件目录",
         "installed_binary": "已安装的二进制",
         "listen_address": "监听地址",
+        "api_key": "API Key",
         "published_ports": "已发布的端口",
         "config_file": "设置文件"
     },
@@ -48,13 +49,16 @@
         "preset_lan": "所有网卡（0.0.0.0）",
         "preset_local": "仅本机（127.0.0.1）",
         "preset_custom": "自定义地址",
+        "show_key": "显示",
+        "hide_key": "隐藏",
         "save": "保存",
         "recreate": "重建 runner",
         "apply_hint": "修改后的地址需要重建 runner 才会生效，在此之前 runner 仍在使用旧地址。",
+        "api_key_hint": "供 OpenAI 兼容客户端使用，默认为 <code>local</code>。runner 不会校验此 Key，也不会用它限制 API 访问。",
         "security": "该 API 没有鉴权。请只在可信网络中发布，或用防火墙限制 12434 端口。",
         "fixed_port": "端口固定为 12434，因为 <code>docker model</code> 命令行会连接本机的这个端口。",
         "none": "未发布",
-        "saved_hint": "可以点击「重建 runner」，把新地址应用到正在运行的容器上。"
+        "saved_hint": "API Key 已可供本地客户端使用；只有监听地址变化时才需要「重建 runner」。"
     },
     "runner": {
         "intro": "runner 是提供模型服务的容器，镜像在需要时按需拉取。",
@@ -81,7 +85,9 @@
         "col_actions": "操作"
     },
     "install": {
-        "hint": "等价的终端命令："
+        "hint": "等价的终端命令：",
+        "client_title": "OpenAI 兼容客户端",
+        "client_hint": "把 <code>&lt;NAS-IP&gt;</code> 替换为服务器地址。示例会使用上方设置的 API Key；该 Key 只是客户端占位值，不是鉴权凭据。"
     },
     "notes": {
         "registry": "<code>docker model pull</code> 不读取 <code>daemon.json</code> 中的 <code>registry-mirrors</code> 设置。在受限网络下请通过代理前缀拉取，例如 <code>docker model pull gh-proxy.org/docker/ai/smollm2:360M-Q4_K_M</code>。",
@@ -113,7 +119,8 @@
         "stop": "正在后台停止 Model Runner。容器会被移除，镜像和模型卷会保留。进度记录在 /var/log/docker-model-runner-stop.log。",
         "uninstall": "正在后台移除 Model Runner。runner 镜像和模型卷会保留。进度记录在 /var/log/docker-model-runner-uninstall.log。",
         "reinstall": "正在后台重建 Model Runner 以应用监听地址。进度记录在 /var/log/docker-model-runner-reinstall.log。",
-        "settings_saved": "监听地址已保存为 %s。",
+        "settings_saved": "设置已保存，监听地址为 %s。",
+        "invalid_api_key": "API Key 请使用 1–128 位字母、数字，或 . _ ~ + / = -。",
         "invalid_host": "这不是有效的 IPv4 或 IPv6 地址。",
         "save_failed": "设置无法写入 %s。",
         "unknown": "未知操作。",

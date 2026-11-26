@@ -464,6 +464,10 @@ function dmr_runner_gpu_mode()
 /**
  * The defaults of the settings the page manages.
  *
+ * The API key is the placeholder expected by OpenAI-compatible clients. The
+ * bundled runner does not authenticate requests, so this is connection
+ * configuration, not an access-control mechanism.
+ *
  * The runner API is published on every host interface by default, so other
  * devices on the LAN can reach it. The CLI binds it to 127.0.0.1 only, and
  * the bridge gateway address it adds on top of that is not routable from
@@ -475,7 +479,32 @@ function dmr_setting_defaults()
 {
     return array(
         'host' => '0.0.0.0',
+        'api_key' => 'local',
     );
+}
+
+/**
+ * Whether a value is a safe API key for the local client configuration.
+ *
+ * Standard API tokens use this printable ASCII subset. Restricting the value
+ * keeps the INI setting unambiguous and prevents whitespace or quote characters
+ * from changing how the settings file is parsed.
+ *
+ * @param mixed $value
+ *
+ * @return bool
+ */
+function dmr_valid_api_key($value)
+{
+    if (!is_string($value)) {
+        return false;
+    }
+
+    $value = trim($value);
+
+    return $value !== ''
+        && strlen($value) <= 128
+        && preg_match('/^[A-Za-z0-9._~+\/=-]+$/D', $value) === 1;
 }
 
 /**
@@ -521,13 +550,13 @@ function dmr_settings()
     }
 
     foreach ($parsed as $key => $value) {
-        if (strtolower((string) $key) !== 'dmr_host') {
-            continue;
-        }
+        $name = strtolower((string) $key);
+        $setting = trim((string) $value, "\"'");
 
-        $host = trim((string) $value, "\"'");
-        if (dmr_valid_host($host)) {
-            $settings['host'] = trim($host);
+        if ($name === 'dmr_host' && dmr_valid_host($setting)) {
+            $settings['host'] = $setting;
+        } elseif ($name === 'dmr_api_key' && dmr_valid_api_key($setting)) {
+            $settings['api_key'] = $setting;
         }
     }
 
@@ -555,6 +584,17 @@ function dmr_save_settings(array $values)
         $settings['host'] = trim((string) $values['host']);
     }
 
+    if (array_key_exists('api_key', $values)) {
+        $apiKey = trim((string) $values['api_key']);
+        if ($apiKey === '') {
+            $apiKey = 'local';
+        }
+        if (!dmr_valid_api_key($apiKey)) {
+            return false;
+        }
+        $settings['api_key'] = $apiKey;
+    }
+
     $dir = dirname(DMR_CONFIG_FILE);
     if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
         return false;
@@ -563,13 +603,16 @@ function dmr_save_settings(array $values)
     $body = "; Settings of the unraid-plugin-docker-model WebGUI page.\n"
         . "; The page writes this file; change the values there.\n"
         . "\n"
-        . 'DMR_HOST="' . str_replace('"', '', $settings['host']) . "\"\n";
+        . 'DMR_HOST="' . str_replace('"', '', $settings['host']) . "\"\n"
+        . 'DMR_API_KEY="' . $settings['api_key'] . "\"\n";
 
     $temporary = DMR_CONFIG_FILE . '.tmp';
     if (@file_put_contents($temporary, $body) === false) {
         return false;
     }
-    @chmod($temporary, 0644);
+    // The file now carries a client credential. Keep it readable only by the
+    // WebGUI process even though the runner itself does not enforce the key.
+    @chmod($temporary, 0600);
 
     if (!@rename($temporary, DMR_CONFIG_FILE)) {
         @unlink($temporary);

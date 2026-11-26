@@ -143,13 +143,14 @@ docker model run ai/smollm2:360M-Q4_K_M "Hello"
 - **Model Runner**：runner 的运行状态，以及安装（纯 CPU / GPU 自动探测）、
   **Stop**（停止）和移除按钮。停止只移除容器，runner 镜像和模型卷都会保留；
   每个按钮只在该状态下可用；
-- **Network**：runner API 的监听地址、容器实际发布的端口、设置文件，以及
-  **Save** 和 **Recreate runner** 按钮（见下）；
+- **Network**：runner API 的监听地址、本地客户端 API Key（默认 `local`）、
+  容器实际发布的端口、设置文件，以及 **Save** 和 **Recreate runner** 按钮（见下）；
 - **Local models**：本地已有模型的表格，每个 tag 一行，显示参数、量化、架构、大小和创建
   时间。每行可以「更新」（重新拉取同一个 tag，未变化的层直接复用）或「删除」（确认后从本地
   模型卷移除），两项操作都在后台执行，日志写入 `/var/log/docker-model-runner-model.log`；
-- **Installation**：CLI 插件目录、CLI 可执行文件、已安装的二进制，以及等价的
-  终端命令（含保存的 `--host` 地址）；
+- **Installation**：CLI 插件目录、CLI 可执行文件、已安装的二进制、等价的
+  终端命令（含保存的 `--host` 地址），以及使用已保存 API Key 的 OpenAI 兼容
+  Python 客户端示例；
 - **Notes**：runner 附带的注意事项。
 
 六张卡片等宽等高：网格会把同一行的卡片拉伸到该行最高的那张，卡片上的按钮因此与
@@ -179,11 +180,17 @@ runner API **默认发布在 `0.0.0.0`**，局域网内任何设备都可以通�
 | 自定义 IPv4 / IPv6 地址 | 指定某一块网卡 |
 
 地址在服务端按 IP 校验后才保存，拼进命令行时再用 `escapeshellarg()` 转义；非法值
-会被拒绝、不会保存。它是插件唯一保存的请求值，也是唯一会进入命令行的请求值。
-地址存在
-`/boot/config/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.cfg`，
-与缓存的安装包一起放在 flash 上，重启后仍在；和该目录下的其它文件一样，卸载插件
-后也会保留。
+会被拒绝、不会保存。它是唯一会进入命令行的设置。监听地址和 API Key 以
+`DMR_HOST`、`DMR_API_KEY` 两个键保存在
+`/boot/config/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.cfg`。
+文件采用原子写入，权限为仅所有者可读写（`0600`），与缓存的安装包一起放在 flash
+上，重启后仍在；和该目录下的其它文件一样，卸载插件后也会保留。旧配置缺少
+`DMR_API_KEY` 时默认使用 `local`。
+
+**API Key** 供 OpenAI 兼容客户端使用：这类客户端即使连接本地 runner，也要求传入
+`api_key` 占位值。它默认是 `local`，允许 1–128 位字母、数字或 `. _ ~ + / = -`，
+可点击「显示」查看。保存空值会恢复为 `local`。「Installation」卡片中的 Python
+示例会跟随此字段。该 Key 不会传给 `docker model`，也不会开启鉴权。
 
 地址属于容器定义的一部分，改完设置只在下一个容器上生效：**Recreate runner** 会执行
 `docker model reinstall-runner --gpu <探测到的模式> --host <新地址>`，GPU 模式从正在
