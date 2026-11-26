@@ -1,7 +1,7 @@
 {
     "title": "Docker Model Runner",
     "hero": {
-        "text": "The <code>docker model</code> CLI plugin for the Unraid Docker CLI. Models are pulled and served locally, the runner container is managed from this page.",
+        "text": "The <code>docker model</code> CLI plugin for the Unraid Docker CLI. Models are pulled and served locally; the Model Runner container is deployed and managed from this page.",
         "refresh": "Refresh"
     },
     "pill": {
@@ -12,6 +12,7 @@
     "card": {
         "status": "Status",
         "runner": "Model Runner",
+        "network": "Network",
         "models": "Local models",
         "install": "Installation",
         "notes": "Notes"
@@ -22,25 +23,57 @@
         "upstream_artifact": "Upstream artifact",
         "cli_binary": "CLI binary",
         "cli_version": "docker model version",
+        "client_version": "Client version",
+        "client_platform": "Client platform",
+        "server_version": "Server version",
+        "server_engine": "Server engine",
         "cli_directory": "CLI directory",
-        "installed_binary": "Installed binary"
+        "installed_binary": "Installed binary",
+        "listen_address": "Listen address",
+        "published_ports": "Published ports",
+        "config_file": "Settings file"
+    },
+    "version": {
+        "raw": "Raw output",
+        "error": "docker model version did not report a version."
+    },
+    "engine": {
+        "docker_engine": "Docker Engine",
+        "docker_engine_manual": "Docker Engine (manual install)",
+        "docker_desktop": "Docker Desktop",
+        "docker_cloud": "Docker Cloud"
+    },
+    "network": {
+        "intro": "The runner publishes its API on this address. <code>0.0.0.0</code> reaches every interface, so other devices on the network can use it; <code>127.0.0.1</code> keeps it on the server.",
+        "preset_lan": "All interfaces (0.0.0.0)",
+        "preset_local": "Server only (127.0.0.1)",
+        "preset_custom": "Custom address",
+        "save": "Save",
+        "recreate": "Recreate runner",
+        "apply_hint": "A changed address takes effect when the runner is recreated; until then it keeps running on the old address.",
+        "security": "The API has no authentication. Publish it on a trusted network only, or restrict port 12434 with a firewall.",
+        "fixed_port": "The port is fixed at 12434, because the <code>docker model</code> CLI connects to that port on localhost.",
+        "none": "not published",
+        "saved_hint": "Run Recreate runner to apply the address to the running container."
     },
     "runner": {
         "intro": "The runner is a container that serves the models. It is pulled on demand.",
         "install_cpu": "Install (CPU)",
         "install_gpu": "Install (GPU auto)",
+        "stop": "Stop",
         "uninstall": "Uninstall",
-        "hint": "The install pulls an image of about 1 GB and runs in the background. The progress is written to <code>/var/log/docker-model-runner-install.log</code>."
+        "hint": "Install and stop run in the background and log to <code>/var/log/docker-model-runner-*.log</code>. The first install pulls an image of about 1 GB.",
+        "stop_hint": "Stop removes the runner container; the image and the model volume are kept."
     },
     "models": {
-        "empty": "No models found. Pull one with docker model pull ai/smollm2:360M-Q4_K_M."
+        "empty": "No models yet. Pull one with <code>docker model pull ai/smollm2:360M-Q4_K_M</code>."
     },
     "install": {
         "hint": "The same commands from a terminal:"
     },
     "notes": {
         "registry": "<code>docker model pull</code> does not honour the <code>registry-mirrors</code> setting of <code>daemon.json</code>. On a restricted network pull through a proxy prefix, for example <code>docker model pull gh-proxy.org/docker/ai/smollm2:360M-Q4_K_M</code>.",
-        "api": "The runner API listens on <code>127.0.0.1:12434</code> and is unauthenticated. Do not expose that port to untrusted networks."
+        "api": "The runner API is not authenticated. This page publishes it on all interfaces by default; switch it to <code>127.0.0.1</code> above when only this server should reach it."
     },
     "state": {
         "checking": "checking ...",
@@ -48,6 +81,7 @@
         "running": "running",
         "stopped": "not running",
         "unknown": "unknown",
+        "unreachable": "not reachable",
         "installed": "installed",
         "missing": "missing",
         "cli_installed": "CLI installed",
@@ -64,17 +98,17 @@
         "log_hint": "See the WebGUI log for details.",
         "install_cpu": "The Model Runner is being installed in the background. The first start pulls the runner image, which takes a few minutes. Progress is logged to /var/log/docker-model-runner-install.log.",
         "install_gpu": "The Model Runner is being installed in the background. The runner image is pulled on first start and an NVIDIA or AMD GPU with container runtime support is required. Progress is logged to /var/log/docker-model-runner-install.log.",
+        "stop": "The Model Runner is being stopped in the background. The container is removed; the image and the model volume are kept. Progress is logged to /var/log/docker-model-runner-stop.log.",
         "uninstall": "The Model Runner is being removed in the background. The runner image and the model volume are kept. Progress is logged to /var/log/docker-model-runner-uninstall.log.",
+        "reinstall": "The Model Runner is being recreated in the background to apply the listen address. Progress is logged to /var/log/docker-model-runner-reinstall.log.",
+        "settings_saved": "The listen address is saved as %s.",
+        "invalid_host": "That is not a valid IPv4 or IPv6 address.",
+        "save_failed": "The settings could not be written to %s.",
         "unknown": "Unknown action.",
         "cross_origin": "The request did not come from the Unraid WebGUI.",
         "post_only": "Only POST is supported.",
         "bad_token": "The request was rejected: its security token is missing or expired. Reload the page and try again.",
         "not_installed": "The docker model CLI plugin is not installed. Reinstall the plugin first.",
         "could_not_start": "The action could not be started. See %s for details."
-    },
-    "cli": {
-        "not_installed": "not installed",
-        "unavailable": "unavailable",
-        "no_output": "no output"
     }
 }
