@@ -581,31 +581,266 @@ function dmr_save_settings(array $values)
 }
 
 /**
- * The list of locally available models.
+ * The locally available models, one row per tag.
  *
- * @return string[]
+ * `docker model list` prints a fixed width table meant for a terminal, which
+ * is awkward to parse and carries less than the machine readable mode:
+ * `docker model list --json` prints the same data as JSON, with the full tag
+ * of every model and its numeric creation time. The JSON is the source of the
+ * table on the page; the rows are built here so the page only renders them.
+ *
+ * The GGUF metadata that comes with a model is dropped: it can be large and
+ * none of it is shown on the page.
+ *
+ * @return array<int,array<string,mixed>>
  */
 function dmr_models()
 {
+    $report = dmr_models_report();
+
+    return $report['models'];
+}
+
+/**
+ * The result of listing the local models.
+ *
+ * The error is kept apart from the rows: an empty list and a listing that
+ * failed look the same otherwise, and a failed listing is what a stopped or
+ * broken Docker daemon produces.
+ *
+ * @return array{ok:bool,models:array<int,array<string,mixed>>,error:string}
+ */
+function dmr_models_report()
+{
+    $report = array('ok' => false, 'models' => array(), 'error' => '');
+
     if (!dmr_binary_installed()) {
-        return array();
+        $report['error'] = dmr_t('state.cli_missing');
+
+        return $report;
     }
 
-    $result = dmr_exec('docker model list 2>&1', 20);
-    if ($result['code'] !== 0 || $result['stdout'] === '') {
-        return array();
+    // stderr is deliberately not merged into stdout: a warning of the CLI
+    // would end up inside the JSON and break the parse. dmr_exec() captures
+    // both streams separately, and the message below uses both.
+    $result = dmr_exec('docker model list --json', 30);
+    if ($result['code'] !== 0) {
+        $detail = trim($result['stderr'] !== '' ? $result['stderr'] : $result['stdout']);
+        $report['error'] = dmr_truncate($detail, 400);
+
+        return $report;
     }
 
-    $models = array();
-    foreach (preg_split('/\R/', $result['stdout']) as $line) {
-        $line = trim($line);
-        if ($line === '' || stripos($line, 'MODEL') === 0) {
+    $output = trim($result['stdout']);
+    if ($output === '') {
+        // No models at all: the CLI prints nothing.
+        $report['ok'] = true;
+
+        return $report;
+    }
+
+    $decoded = json_decode($output, true);
+    if (!is_array($decoded)) {
+        $report['error'] = dmr_t('models.parse_error');
+
+        return $report;
+    }
+
+    $report['models'] = dmr_parse_models($decoded);
+    $report['ok'] = true;
+
+    return $report;
+}
+
+/**
+ * Build the table rows of the page from the decoded output of
+ * `docker model list --json`.
+ *
+ * @param array<mixed> $decoded
+ *
+ * @return array<int,array<string,mixed>>
+ */
+function dmr_parse_models(array $decoded)
+{
+    $rows = array();
+
+    foreach ($decoded as $entry) {
+        if (!is_array($entry)) {
             continue;
         }
-        $models[] = $line;
+
+        $id = (isset($entry['id']) && is_string($entry['id'])) ? $entry['id'] : '';
+        $config = (isset($entry['config']) && is_array($entry['config'])) ? $entry['config'] : array();
+        $created = (isset($entry['created']) && is_numeric($entry['created'])) ? (int) $entry['created'] : 0;
+
+        $tags = array();
+        if (isset($entry['tags']) && is_array($entry['tags'])) {
+            foreach ($entry['tags'] as $tag) {
+                if (is_string($tag) && trim($tag) !== '') {
+                    $tags[] = trim($tag);
+                }
+            }
+        }
+
+        // A model that was imported without a tag has no name and no tag that
+        // could be pulled again; the page shows the id and only offers to
+        // remove it, which the CLI accepts by id as well.
+        if (!$tags) {
+            $tags = array('');
+        }
+
+        foreach ($tags as $tag) {
+            $rows[] = array(
+                'id' => $id,
+                'tag' => $tag,
+                'name' => $tag === '' ? dmr_model_short_id($id) : dmr_model_display_name($tag),
+                'parameters' => dmr_model_config_value($config, 'parameters'),
+                'quantization' => dmr_model_config_value($config, 'quantization'),
+                'architecture' => dmr_model_config_value($config, 'architecture'),
+                'size' => dmr_model_config_value($config, 'size'),
+                'format' => dmr_model_config_value($config, 'format'),
+                'created' => $created,
+            );
+        }
     }
 
-    return $models;
+    return $rows;
+}
+
+/**
+ * Read one field of the config object of a model as a string.
+ *
+ * @param array<mixed> $config
+ * @param string $key
+ *
+ * @return string
+ */
+function dmr_model_config_value(array $config, $key)
+{
+    if (!isset($config[$key])) {
+        return '';
+    }
+
+    $value = $config[$key];
+    if (is_string($value)) {
+        return trim($value);
+    }
+    if (is_int($value) || is_float($value)) {
+        return (string) $value;
+    }
+
+    return '';
+}
+
+/**
+ * The name of a model as the CLI table shows it: without the default registry.
+ *
+ * The tag itself stays the identifier of the actions, because
+ * `docker model pull` and `docker model rm` take the name as it is listed.
+ *
+ * @param string $tag
+ *
+ * @return string
+ */
+function dmr_model_display_name($tag)
+{
+    $name = (string) $tag;
+
+    foreach (array('index.docker.io/', 'docker.io/') as $prefix) {
+        if (strpos($name, $prefix) === 0) {
+            return substr($name, strlen($prefix));
+        }
+    }
+
+    return $name;
+}
+
+/**
+ * The short id of a model, for a model that has no tag.
+ *
+ * @param string $id
+ *
+ * @return string
+ */
+function dmr_model_short_id($id)
+{
+    $id = (string) $id;
+    if (strpos($id, 'sha256:') === 0) {
+        $id = substr($id, 7);
+    }
+
+    return substr($id, 0, 12);
+}
+
+/**
+ * Resolve a model reference of the page against the list the CLI reports.
+ *
+ * A request value never becomes a command line argument by itself: it is only
+ * used to select one of the identifiers that `docker model list` printed, and
+ * that identifier is what the command is built from. A reference that is not
+ * in the current list is refused, so a crafted request cannot make the plugin
+ * run `docker model` against an arbitrary target.
+ *
+ * @param array{models:array<int,array<string,mixed>>} $report
+ * @param mixed $requested
+ * @param bool $require_tag whether the action needs a tag (pull needs one)
+ *
+ * @return string|null
+ */
+function dmr_resolve_model(array $report, $requested, $require_tag = false)
+{
+    if (!is_string($requested)) {
+        return null;
+    }
+
+    $requested = trim($requested);
+    if ($requested === '') {
+        return null;
+    }
+
+    foreach ($report['models'] as $row) {
+        $tag = isset($row['tag']) ? (string) $row['tag'] : '';
+        $id = isset($row['id']) ? (string) $row['id'] : '';
+
+        if ($tag !== '' && $tag === $requested) {
+            return $tag;
+        }
+
+        if (!$require_tag && $id !== '' && $id === $requested) {
+            return $id;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * The command that updates or removes one model.
+ *
+ * The identifier has to come from dmr_resolve_model(): it is quoted here, but
+ * validation is what keeps an arbitrary value out of the command.
+ *
+ * @param string $action update-model or remove-model
+ * @param string $target a tag or id reported by `docker model list`
+ *
+ * @return string|null
+ */
+function dmr_model_command($action, $target)
+{
+    $target = (string) $target;
+    if ($target === '') {
+        return null;
+    }
+
+    if ($action === 'update-model') {
+        return 'docker model pull ' . escapeshellarg($target);
+    }
+
+    if ($action === 'remove-model') {
+        return 'docker model rm ' . escapeshellarg($target);
+    }
+
+    return null;
 }
 
 /**

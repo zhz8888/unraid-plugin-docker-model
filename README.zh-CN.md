@@ -145,7 +145,9 @@ docker model run ai/smollm2:360M-Q4_K_M "Hello"
   每个按钮只在该状态下可用；
 - **Network**：runner API 的监听地址、容器实际发布的端口、设置文件，以及
   **Save** 和 **Recreate runner** 按钮（见下）；
-- **Local models**：本地已有的模型；
+- **Local models**：本地已有模型的表格，每个 tag 一行，显示参数、量化、架构、大小和创建
+  时间。每行可以「更新」（重新拉取同一个 tag，未变化的层直接复用）或「删除」（确认后从本地
+  模型卷移除），两项操作都在后台执行，日志写入 `/var/log/docker-model-runner-model.log`；
 - **Installation**：CLI 插件目录、CLI 可执行文件、已安装的二进制，以及等价的
   终端命令（含保存的 `--host` 地址）；
 - **Notes**：runner 附带的注意事项。

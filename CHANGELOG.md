@@ -27,7 +27,8 @@ The bundled `docker-model-plugin` stays at 1.2.9. This release reworks the
 WebGUI page: the version output of the CLI is parsed into localized rows, the
 runner can be stopped from the page without touching its image or models, a new
 Network card publishes the runner API on the LAN by default and stores the
-chosen address on the flash device, and the page is a grid of six equally sized
+chosen address on the flash device, the local models are a table that can
+update or remove a single model, and the page is a grid of six equally sized
 cards.
 
 ### Added
@@ -70,6 +71,14 @@ cards.
   `-rocm`, `-musa`, `-cann`, otherwise `none`, `auto` when the container
   cannot be queried), so a CPU-only installation on a GPU host does not
   silently become a CUDA one
+- The **Local models** card is a table, one row per tag, with the model,
+  parameters, quantization, architecture, size and creation time. Every row has
+  an **Update** and a **Remove** action: Update pulls the same tag again, which
+  reuses the layers that did not change, and Remove deletes the model from the
+  local model volume after a confirmation. Both run in the background and log
+  to `/var/log/docker-model-runner-model.log`; the row buttons are disabled
+  while a request runs, and the table refreshes shortly after the answer and
+  once more later, so a finished pull shows up without a reload
 
 ### Changed
 
@@ -97,6 +106,15 @@ cards.
 - The terminal command list on the Installation card shows the commands the
   page actually runs, with the stored `--host` address and `stop-runner` and
   `reinstall-runner` included
+- The model list is fetched with `docker model list --json` instead of parsing
+  the fixed-width table the CLI prints for a terminal: the JSON carries the full
+  tag and the numeric creation time, and it can be parsed without depending on
+  the column layout. The status endpoint reports the rows plus the error of a
+  failed listing, so a stopped Docker daemon shows an error instead of an empty
+  list. A model reference sent by the page is resolved against the identifiers
+  of that listing and only the identifier from the listing is quoted into
+  `docker model pull` / `docker model rm`, so a crafted value cannot address
+  anything that is not a local model
 
 ### Fixed
 

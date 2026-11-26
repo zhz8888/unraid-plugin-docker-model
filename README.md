@@ -163,7 +163,11 @@ page is a grid of cards, one per function:
   running container is actually published on, the settings file, and the
   **Save** and **Recreate runner** buttons (see
   [Publishing the runner on the network](#publishing-the-runner-on-the-network));
-- **Local models** — the models that are available locally;
+- **Local models** — a table of the models that are available locally, one row
+  per tag, with the parameters, quantization, architecture, size and creation
+  time. Every row can be updated (pull the same tag again; layers that did not
+  change are reused) or removed after a confirmation. Both actions run in the
+  background and log to `/var/log/docker-model-runner-model.log`;
 - **Installation** — the CLI directory, the CLI binary, the installed binary
   and the equivalent terminal commands, including the stored `--host` address;
 - **Notes** — the caveats that come with the runner.

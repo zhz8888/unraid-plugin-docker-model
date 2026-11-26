@@ -119,6 +119,8 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         <?php
         echo dmr_card_open(dmr_t('card.models'), 'database');
         echo '<div id="dmr-models" class="dmr-models"><p class="dmr-muted">' . dmr_esc(dmr_t('state.loading')) . '</p></div>';
+        echo '<p class="dmr-hint">' . dmr_t('models.hint') . '</p>';
+        echo '<div id="dmr-models-result" class="dmr-result" hidden></div>';
         echo dmr_card_close();
         ?>
 
@@ -169,6 +171,19 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         'state.runner_stopped',
         'state.models_count',
         'models.empty',
+        'models.hint',
+        'models.update',
+        'models.remove',
+        'models.untagged',
+        'models.confirm_remove',
+        'models.refreshed',
+        'models.col_name',
+        'models.col_parameters',
+        'models.col_quantization',
+        'models.col_architecture',
+        'models.col_size',
+        'models.col_created',
+        'models.col_actions',
         'version.error',
         'action.working',
         'action.done',
@@ -249,7 +264,58 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         }
     }
 
-    function renderModels(models) {
+    // One row per tag, because the CLI lists one row per tag as well. The
+    // update and remove buttons carry the identifier that the status endpoint
+    // reported; the endpoint resolves it against the current list again, so a
+    // page that is out of date cannot address a model that is gone.
+    var modelColumns = ['name', 'parameters', 'quantization', 'architecture', 'size', 'created', 'actions'];
+    var modelHeaders = {
+        name: 'models.col_name',
+        parameters: 'models.col_parameters',
+        quantization: 'models.col_quantization',
+        architecture: 'models.col_architecture',
+        size: 'models.col_size',
+        created: 'models.col_created',
+        actions: 'models.col_actions'
+    };
+
+    function modelCell(tagName, className, text) {
+        var cell = document.createElement(tagName);
+        if (className) {
+            cell.className = className;
+        }
+        if (text !== null && text !== undefined) {
+            cell.textContent = text;
+        }
+        return cell;
+    }
+
+    function formatCreated(created) {
+        if (!created) {
+            return '';
+        }
+        var date = new Date(created * 1000);
+        if (isNaN(date.getTime())) {
+            return '';
+        }
+        return date.toLocaleString();
+    }
+
+    function modelActionButton(row, action) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'button dmr-mini';
+        button.textContent = t[action === 'update' ? 'models.update' : 'models.remove'];
+        button.setAttribute('data-dmr-model-action', action);
+        button.setAttribute('data-dmr-model', row.tag || row.id || '');
+        if (action === 'update' && !row.tag) {
+            button.disabled = true;
+            button.title = t['models.untagged'];
+        }
+        return button;
+    }
+
+    function renderModels(models, error) {
         var box = document.getElementById('dmr-models');
         if (!box) {
             return;
@@ -257,6 +323,15 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         while (box.firstChild) {
             box.removeChild(box.firstChild);
         }
+
+        if (error) {
+            var notice = document.createElement('p');
+            notice.className = 'dmr-notice dmr-notice--err';
+            notice.textContent = error;
+            box.appendChild(notice);
+            return;
+        }
+
         if (!models || models.length === 0) {
             var empty = document.createElement('p');
             empty.className = 'dmr-muted';
@@ -264,15 +339,48 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
             box.appendChild(empty);
             return;
         }
-        var list = document.createElement('ul');
-        list.className = 'dmr-list';
-        for (var i = 0; i < models.length; i++) {
-            var item = document.createElement('li');
-            item.className = 'dmr-list__item';
-            item.textContent = models[i];
-            list.appendChild(item);
+
+        var table = document.createElement('table');
+        table.className = 'dmr-table';
+
+        var head = document.createElement('thead');
+        var headRow = document.createElement('tr');
+        for (var c = 0; c < modelColumns.length; c++) {
+            var column = modelColumns[c];
+            headRow.appendChild(modelCell('th', 'dmr-table__' + column, t[modelHeaders[column]]));
         }
-        box.appendChild(list);
+        head.appendChild(headRow);
+        table.appendChild(head);
+
+        var body = document.createElement('tbody');
+        for (var i = 0; i < models.length; i++) {
+            var row = models[i] || {};
+            var tr = document.createElement('tr');
+
+            var nameCell = modelCell('td', 'dmr-table__name');
+            var code = document.createElement('code');
+            code.textContent = row.name || row.tag || '';
+            if (row.tag && row.tag !== row.name) {
+                code.title = row.tag;
+            }
+            nameCell.appendChild(code);
+            tr.appendChild(nameCell);
+
+            tr.appendChild(modelCell('td', 'dmr-table__parameters', row.parameters || ''));
+            tr.appendChild(modelCell('td', 'dmr-table__quantization', row.quantization || ''));
+            tr.appendChild(modelCell('td', 'dmr-table__architecture', row.architecture || ''));
+            tr.appendChild(modelCell('td', 'dmr-table__size', row.size || ''));
+            tr.appendChild(modelCell('td', 'dmr-table__created', formatCreated(row.created)));
+
+            var actions = modelCell('td', 'dmr-table__actions');
+            actions.appendChild(modelActionButton(row, 'update'));
+            actions.appendChild(modelActionButton(row, 'remove'));
+            tr.appendChild(actions);
+
+            body.appendChild(tr);
+        }
+        table.appendChild(body);
+        box.appendChild(table);
     }
 
     function renderPorts(ports) {
@@ -336,7 +444,7 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
 
             renderVersion(data ? data.version : null);
             renderPorts(data ? data.runner_ports : '');
-            renderModels(models);
+            renderModels(models, data ? data.models_error : '');
             syncSettings(data && data.settings ? data.settings.host : '');
 
             actionInFlight = false;
@@ -402,6 +510,48 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
         });
     }
 
+    // A model action targets one row of the model table. Every row action is
+    // disabled while the request runs, because a second click would start a
+    // second pull or a second remove of the same model.
+    var modelActionInFlight = false;
+
+    function runModelAction(action, model) {
+        if (modelActionInFlight || !model) {
+            return;
+        }
+
+        if (action === 'remove' && !window.confirm(t['models.confirm_remove'].replace('%s', model))) {
+            return;
+        }
+
+        modelActionInFlight = true;
+
+        var buttons = document.querySelectorAll('#dmr-models [data-dmr-model-action]');
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].disabled = true;
+        }
+
+        showResult('dmr-models-result', t['action.working'], '');
+        $.post(actionEndpoint, {
+            action: action === 'update' ? 'update-model' : 'remove-model',
+            model: model,
+            token: actionToken
+        }, function (data) {
+            var ok = !!(data && data.ok);
+            var message = (data && data.message) ? data.message : (ok ? t['action.done'] : t['action.failed']);
+            showResult('dmr-models-result', message, ok ? t['models.refreshed'] : t['action.log_hint']);
+            // A pull can take minutes; refresh once shortly after the request
+            // and once later, so a finished update shows up without a reload.
+            window.setTimeout(loadStatus, 3000);
+            window.setTimeout(loadStatus, 15000);
+        }, 'json').fail(function () {
+            showResult('dmr-models-result', t['action.failed'], t['action.log_hint']);
+            loadStatus();
+        }).always(function () {
+            modelActionInFlight = false;
+        });
+    }
+
     var saving = false;
 
     function saveSettings() {
@@ -450,6 +600,13 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
     document.addEventListener('click', function (event) {
         var target = event.target;
         if (!target || !target.closest) {
+            return;
+        }
+        var modelButton = target.closest('[data-dmr-model-action]');
+        if (modelButton) {
+            event.preventDefault();
+            runModelAction(modelButton.getAttribute('data-dmr-model-action'),
+                modelButton.getAttribute('data-dmr-model'));
             return;
         }
         var button = target.closest('[data-dmr-action]');

@@ -7,10 +7,15 @@
  *
  * The endpoint only accepts a fixed set of action names. The command that
  * belongs to an action is defined here, never taken from the request, so no
- * request value ever reaches the shell. The listen address of the runner is
- * the only value of the page that ends up in a command line; it is validated
- * as an IP address by dmr_valid_host() and quoted with escapeshellarg() on
- * top of that.
+ * request value ever reaches the shell as it was sent. Two request values
+ * select the target of a command:
+ *
+ * - the listen address of the runner, validated as an IP address by
+ *   dmr_valid_host() and quoted with escapeshellarg() on top of that;
+ * - the model of a model action, resolved by dmr_resolve_model() against the
+ *   identifiers that `docker model list` just printed. Only the identifier
+ *   from that list reaches the command, so a crafted reference that is not a
+ *   local model is refused.
  *
  * Two guards sit in front of the whitelist. dmr_request_is_same_origin()
  * compares scheme, host and port of the Origin/Referer with the host the
@@ -223,6 +228,31 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
             $ok = true;
             $message = sprintf(dmr_t('action.settings_saved'), $host);
             $extra['host'] = $host;
+        }
+    } elseif ($action === 'update-model' || $action === 'remove-model') {
+        // Update is a pull of the same tag, which fetches the layers that
+        // changed; remove is a plain `docker model rm`, so a model that the
+        // runner still has loaded is refused by the CLI and the row stays.
+        if (!dmr_binary_installed()) {
+            $message = dmr_t('action.not_installed');
+        } else {
+            $updating = $action === 'update-model';
+            $report = dmr_models_report();
+            $requested = isset($_POST['model']) ? $_POST['model'] : null;
+            $target = dmr_resolve_model($report, $requested, $updating);
+            $logfile = '/var/log/docker-model-runner-model.log';
+
+            $command = $target === null ? null : dmr_model_command($action, $target);
+
+            if ($command === null) {
+                $message = dmr_t('action.model_not_found');
+            } elseif (dmr_run_in_background($command, $logfile)) {
+                $ok = true;
+                $message = sprintf(dmr_t($updating ? 'action.update_model' : 'action.remove_model'), $target);
+                $extra['model'] = $target;
+            } else {
+                $message = sprintf(dmr_t('action.could_not_start'), $logfile);
+            }
         }
     } elseif (!isset($commands[$action])) {
         $message = dmr_t('action.unknown');

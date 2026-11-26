@@ -352,40 +352,97 @@
 
 /* ----------------------------------------------------------------- lists */
 
-/* The model list takes the space the card has left and scrolls on its own,
+/* The model table takes the space the card has left and scrolls on its own,
  * so a long list does not stretch the whole row and a short one does not leave
- * an undefined gap in the card. */
+ * an undefined gap in the card. It scrolls in both directions: the columns are
+ * the fields the CLI reports, and a narrow card must not squeeze them until
+ * they are unreadable. */
 .dmr-models {
     flex: 1 1 auto;
     min-height: 4.5rem;
-    max-height: 15rem;
-    overflow-y: auto;
-    padding: 0.35rem 0.65rem;
+    max-height: 18rem;
+    overflow: auto;
+    padding: 0.15rem 0.35rem;
     border: 1px solid var(--border-color);
     border-radius: 6px;
     background: var(--alt-background-color, var(--background-color));
 }
 
 .dmr-models > .dmr-muted {
-    margin: 0.45rem 0;
+    margin: 0.45rem 0.35rem;
 }
 
-.dmr-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
+/* --------------------------------------------------------------- tables */
 
-.dmr-list__item {
-    padding: 0.35rem 0;
-    border-bottom: 1px solid var(--border-color);
-    font-family: monospace;
+.dmr-table {
+    width: 100%;
+    border-collapse: collapse;
     font-size: 0.85rem;
-    word-break: break-all;
 }
 
-.dmr-list__item:last-child {
+.dmr-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--title-header-background-color, var(--background-color));
+    color: var(--alt-text-color);
+    font-size: 0.72rem;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.dmr-table td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: top;
+    white-space: nowrap;
+}
+
+.dmr-table tbody tr:last-child td {
     border-bottom: 0;
+}
+
+.dmr-table tbody tr:hover td {
+    background: var(--alt-background-color, transparent);
+}
+
+.dmr-table code {
+    font-size: 0.85rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.dmr-table__name {
+    min-width: 14rem;
+    max-width: 24rem;
+}
+
+.dmr-table__actions {
+    text-align: right;
+}
+
+/* The per row buttons keep the shape of the Unraid button but not its size:
+ * two of them have to fit into a table cell. The selector has to outrank
+ * Unraid's button[type="button"] rule, which is (0,1,1). */
+.dmr-table button.dmr-mini {
+    margin: 0 0.2rem 0 0;
+    padding: 0.15rem 0.5rem;
+    min-width: 0;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+    .dmr-table__architecture,
+    .dmr-table__created {
+        display: none;
+    }
 }
 
 /* ---------------------------------------------------------- responsive */

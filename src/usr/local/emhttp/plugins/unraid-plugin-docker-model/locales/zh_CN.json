@@ -66,7 +66,21 @@
         "stop_hint": "「停止」会移除 runner 容器，镜像和模型卷会保留。"
     },
     "models": {
-        "empty": "还没有模型。可以执行 <code>docker model pull ai/smollm2:360M-Q4_K_M</code> 拉取一个。"
+        "empty": "还没有模型。可以执行 <code>docker model pull ai/smollm2:360M-Q4_K_M</code> 拉取一个。",
+        "hint": "「更新」会重新拉取同一个 tag，未变化的层直接复用；「删除」会把模型从本地模型卷中移除。两项都在后台执行，日志写入 <code>/var/log/docker-model-runner-model.log</code>。",
+        "update": "更新",
+        "remove": "删除",
+        "untagged": "该模型没有 tag，无法重新拉取，只能删除。",
+        "confirm_remove": "确定删除本地模型 %s 吗？它的文件会从模型卷中删除。",
+        "refreshed": "表格会自动刷新。",
+        "parse_error": "无法解析模型列表。",
+        "col_name": "模型",
+        "col_parameters": "参数",
+        "col_quantization": "量化",
+        "col_architecture": "架构",
+        "col_size": "大小",
+        "col_created": "创建时间",
+        "col_actions": "操作"
     },
     "install": {
         "hint": "等价的终端命令："
@@ -109,6 +123,9 @@
         "post_only": "只支持 POST 请求。",
         "bad_token": "请求被拒绝：安全令牌缺失或已过期，请刷新页面后重试。",
         "not_installed": "docker model 命令行插件尚未安装，请先重新安装本插件。",
-        "could_not_start": "无法启动该操作，详情请查看 %s。"
+        "could_not_start": "无法启动该操作，详情请查看 %s。",
+        "update_model": "正在后台重新拉取模型 %s，未变化的层会直接复用。进度记录在 /var/log/docker-model-runner-model.log。",
+        "remove_model": "正在后台从本地模型卷中删除模型 %s。进度记录在 /var/log/docker-model-runner-model.log。",
+        "model_not_found": "该模型已不在本地列表中，请刷新页面后重试。"
     }
 }

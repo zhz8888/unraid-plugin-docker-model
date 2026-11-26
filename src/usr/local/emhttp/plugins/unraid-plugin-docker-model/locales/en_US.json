@@ -66,7 +66,21 @@
         "stop_hint": "Stop removes the runner container; the image and the model volume are kept."
     },
     "models": {
-        "empty": "No models yet. Pull one with <code>docker model pull ai/smollm2:360M-Q4_K_M</code>."
+        "empty": "No models yet. Pull one with <code>docker model pull ai/smollm2:360M-Q4_K_M</code>.",
+        "hint": "Update pulls the same tag again and keeps the layers that did not change; Remove deletes the model from the local model volume. Both run in the background and log to <code>/var/log/docker-model-runner-model.log</code>.",
+        "update": "Update",
+        "remove": "Remove",
+        "untagged": "This model has no tag, so it cannot be pulled again; only removal is available.",
+        "confirm_remove": "Remove the local model %s? Its files are deleted from the model volume.",
+        "refreshed": "The table is refreshed automatically.",
+        "parse_error": "The model list could not be read.",
+        "col_name": "Model",
+        "col_parameters": "Parameters",
+        "col_quantization": "Quantization",
+        "col_architecture": "Architecture",
+        "col_size": "Size",
+        "col_created": "Created",
+        "col_actions": "Actions"
     },
     "install": {
         "hint": "The same commands from a terminal:"
@@ -109,6 +123,9 @@
         "post_only": "Only POST is supported.",
         "bad_token": "The request was rejected: its security token is missing or expired. Reload the page and try again.",
         "not_installed": "The docker model CLI plugin is not installed. Reinstall the plugin first.",
-        "could_not_start": "The action could not be started. See %s for details."
+        "could_not_start": "The action could not be started. See %s for details.",
+        "update_model": "The model %s is being pulled again in the background, which keeps the layers that did not change. Progress is logged to /var/log/docker-model-runner-model.log.",
+        "remove_model": "The model %s is being removed from the local model volume in the background. Progress is logged to /var/log/docker-model-runner-model.log.",
+        "model_not_found": "That model is not in the local list any more. Refresh the page and try again."
     }
 }

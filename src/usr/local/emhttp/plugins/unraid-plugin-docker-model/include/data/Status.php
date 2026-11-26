@@ -24,6 +24,7 @@ header('Content-Type: application/json');
 
 $version = dmr_version_report();
 $runner = dmr_runner_state();
+$models = dmr_models_report();
 $settings = dmr_settings();
 
 $payload = array(
@@ -40,7 +41,11 @@ $payload = array(
     ),
     'runner' => $runner['running'] ? 'running' : 'stopped',
     'runner_ports' => $runner['ports'],
-    'models' => dmr_models(),
+    // One row per tag: the page renders them as a table with an update and a
+    // remove action per row. A listing that failed is reported separately, so
+    // an error is not shown as an empty list.
+    'models' => $models['models'],
+    'models_error' => $models['error'],
     'settings' => array(
         'host' => $settings['host'],
     ),
@@ -54,7 +59,7 @@ $json = json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
 if (!is_string($json)) {
     http_response_code(500);
     $json = '{"binary":"missing","version":{"status":"unavailable","structured":false},'
-        . '"runner":"stopped","runner_ports":"","models":[],"settings":{}}';
+        . '"runner":"stopped","runner_ports":"","models":[],"models_error":"","settings":{}}';
 }
 
 echo $json;
