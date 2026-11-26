@@ -44,7 +44,7 @@ flowchart TD
   RUNNER["container docker-model-runner<br/>(docker/model-runner)"]
   BACKEND["llama.cpp backend<br/>CPU / CUDA / ROCm / Vulkan"]
   VOLUME["volume docker-model-runner-models<br/>to /models"]
-  PORT["listening on 127.0.0.1:12434"]
+  PORT["API on 0.0.0.0:12434<br/>by default (configurable)"]
 
   CLI --> PLUGIN
   PLUGIN -->|"docker model install-runner"| RUNNER
@@ -56,7 +56,9 @@ flowchart TD
 The plugin installs the CLI binary into `/usr/libexec/docker/cli-plugins/` and
 re-deploys it on every boot (Unraid's `/usr` is an overlay filesystem, so
 anything installed there is lost on reboot). The runner container itself is
-pulled on demand with `docker model install-runner`.
+pulled on demand with `docker model install-runner`. The runner API is
+published on every network interface by default, so other devices on your
+network can use it; the address is set on the Network card of the page.
 
 ## Install
 
@@ -121,12 +123,24 @@ docker model install-runner --gpu none
 docker model install-runner --gpu auto
 ```
 
+The CLI publishes the API on `127.0.0.1` and on the docker bridge gateway
+unless `--host` is given, so a runner started this way is reachable from the
+server only. The WebGUI page passes the stored listen address (default
+`0.0.0.0`) to `install-runner`; add `--host 0.0.0.0` yourself if you deploy
+from a terminal and want the same.
+
 Pull a model and run it:
 
 ```bash
 docker model pull ai/smollm2:360M-Q4_K_M
 docker model run ai/smollm2:360M-Q4_K_M "Hello"
 ```
+
+`docker model stop-runner` removes the runner container and keeps the runner
+image and the model volume, so the next install starts the existing image
+without pulling it again. In the bundled CLI 1.2.9 `uninstall-runner` shares
+that cleanup path; only its optional flags also remove the image and the model
+volume.
 
 ### From the WebGUI
 
@@ -136,14 +150,29 @@ page is a grid of cards, one per function:
 
 - a hero strip with the plugin icon, a short description and three live status
   pills — CLI, Runner and Models — plus a **Refresh** button;
-- **Status** — the bundled CLI version, the upstream artifact and the output of
-  `docker model version`;
+- **Status** — the plugin version, the bundled docker-model version and the
+  upstream artifact, plus `docker model version` split into one row per field:
+  client version, client platform, server version and server engine. The raw output is kept in a collapsed **Raw output** block
+  for troubleshooting and opened automatically when the CLI prints a layout
+  the page does not know;
 - **Model Runner** — the state of the runner and the buttons that install it
-  (CPU only or GPU auto) or remove it;
+  (CPU only or GPU auto), **Stop** it or remove it. Stop removes the container
+  and keeps the runner image and the model volume; every button is enabled only
+  in the state it applies to;
+- **Network** — the address the runner API is published on, the ports the
+  running container is actually published on, the settings file, and the
+  **Save** and **Recreate runner** buttons (see
+  [Publishing the runner on the network](#publishing-the-runner-on-the-network));
 - **Local models** — the models that are available locally;
-- **Installation** — the CLI directory, the installed binary and the equivalent
-  terminal commands;
+- **Installation** — the CLI directory, the CLI binary, the installed binary
+  and the equivalent terminal commands, including the stored `--host` address;
 - **Notes** — the caveats that come with the runner.
+
+The six cards are equal sized: the grid stretches every card of a row to the
+height of the tallest one, so the buttons of a card line up with the buttons of
+the cards next to it, and the model list scrolls inside its card. The grid is
+one column below 780 px, two columns from 780 px and three columns from
+1500 px.
 
 Everything that needs a `docker` call is loaded asynchronously after the page
 has been rendered, so a stopped Model Runner never delays the page itself.
@@ -153,6 +182,44 @@ translation files in `locales/`, next to the page file: `en_US.json` is the
 English base, `zh_CN.json` is the Simplified Chinese translation. A new locale
 is added by dropping a `<locale>.json` file with the same keys into that
 directory.
+
+### Publishing the runner on the network
+
+The runner API is published on **`0.0.0.0` by default**, so any device on the
+network can use it at `http://<NAS-IP>:12434`. This is deliberate:
+`docker model` has no `--network` flag, it publishes the container port with
+`--host <ip>`, and its own default — `127.0.0.1`, plus the docker bridge
+gateway the CLI binds on top of it — is only reachable from the server.
+
+The **Network** card chooses the address:
+
+| Choice | Effect |
+|---|---|
+| `0.0.0.0` (default) | every interface — reachable from the LAN |
+| `127.0.0.1` | the server only |
+| a custom IPv4 or IPv6 address | one specific interface |
+
+The value is validated as an IP address on the server before it is stored, and
+quoted with `escapeshellarg()` when it is appended to the command line; an
+invalid value is refused, not saved. It is the only request value the plugin
+stores, and the only one that later reaches a command line. The address lives
+in
+`/boot/config/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.cfg`,
+next to the cached package on the flash device, so it survives a reboot and,
+like the rest of that directory, a plugin removal.
+
+The address is part of the container definition, so a changed setting takes
+effect only on a new container: **Recreate runner** runs the command
+`docker model reinstall-runner --gpu <detected> --host <address>` with the
+GPU mode read back from the image of the running container (`-cuda`,
+`-rocm`, `-musa`, `-cann`, otherwise `none`; `auto` when it cannot be
+read), so a CPU-only installation on a GPU host does not silently become a
+CUDA one. The port stays `12434` either way, because the CLI connects to that
+port on localhost.
+
+The API is unauthenticated. `0.0.0.0` exposes it to every device that can
+reach the network: restrict port `12434` with a firewall, or switch the page
+back to `127.0.0.1`.
 
 ## Build from source
 
@@ -286,8 +353,10 @@ package runs unmodified on Slackware-based Unraid.
    The runner resolves registries directly. On restricted networks use a fully
    qualified name with a proxy prefix, e.g.
    `docker model pull gh-proxy.org/docker/ai/smollm2:360M-Q4_K_M`.
-4. **The runner API is unauthenticated.** It binds to `127.0.0.1` and the docker
-   bridge gateway by default. Do not expose port `12434` to untrusted networks.
+4. **The runner API is unauthenticated.** The page publishes it on `0.0.0.0`
+   by default, so every device on the network can use it. Set the address to
+   `127.0.0.1` on the page, or restrict port `12434` with a firewall; do not
+   expose it to untrusted networks.
 
 ## Conformance with the official Unraid plugin rules
 
@@ -315,7 +384,7 @@ still need verification on a real Unraid host.
 | Unraid plugin | `unraid-plugin-docker-model` | `<PLUGIN name="...">` |
 | `.plg` file | `unraid-plugin-docker-model.plg` | goes in `/boot/config/plugins/` |
 | Mirrored `.plg` | `unraid-plugin-docker-model-proxy.plg` | install this one **or** the canonical one, never both |
-| Flash cache dir | `/boot/config/plugins/unraid-plugin-docker-model/` | holds the txz |
+| Flash cache dir | `/boot/config/plugins/unraid-plugin-docker-model/` | holds the txz and the settings file `unraid-plugin-docker-model.cfg` |
 | Slackware package | `unraid-plugin-docker-model-<plugin-version>-x86_64-1.txz` | installed by `upgradepkg` |
 | Installed binary | `/usr/libexec/docker/cli-plugins/docker-model` | **name is fixed** |
 | WebGUI page | `/usr/local/emhttp/plugins/unraid-plugin-docker-model/DockerModelRunner.page` | target of the `launch` attribute, shown as a card under `Settings → User Utilities` |

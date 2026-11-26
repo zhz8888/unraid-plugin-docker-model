@@ -40,7 +40,7 @@ flowchart TD
   RUNNER["容器 docker-model-runner<br/>(docker/model-runner)"]
   BACKEND["llama.cpp 后端<br/>CPU / CUDA / ROCm / Vulkan"]
   VOLUME["卷 docker-model-runner-models<br/>挂载到 /models"]
-  PORT["监听 127.0.0.1:12434"]
+  PORT["默认在 0.0.0.0:12434<br/>发布 API（可配置）"]
 
   CLI --> PLUGIN
   PLUGIN -->|"docker model install-runner"| RUNNER
@@ -51,7 +51,8 @@ flowchart TD
 
 插件把 CLI 二进制装进 `/usr/libexec/docker/cli-plugins/`，并在**每次开机时重新部署**
 （Unraid 的 `/usr` 是 overlay，装在那里的东西重启即丢失）。runner 容器本身由
-`docker model install-runner` 按需拉取。
+`docker model install-runner` 按需拉取。runner 的 API 默认发布在所有网卡上，
+局域网内其它设备可以直接使用；监听地址在页面的「网络」卡片上设置。
 
 ## 安装
 
@@ -111,12 +112,21 @@ docker model install-runner --gpu none
 docker model install-runner --gpu auto
 ```
 
+不传 `--host` 时，CLI 会把 API 发布到 `127.0.0.1` 和 docker bridge 网关地址上，
+所以从终端这样装出来的 runner 只有本机能访问。WebGUI 页面会把保存的监听地址
+（默认 `0.0.0.0`）传给 `install-runner`；如果从终端部署并希望局域网能访问，
+请自行加上 `--host 0.0.0.0`。
+
 拉取并运行模型：
 
 ```bash
 docker model pull ai/smollm2:360M-Q4_K_M
 docker model run ai/smollm2:360M-Q4_K_M "Hello"
 ```
+
+`docker model stop-runner` 会移除 runner 容器，但保留 runner 镜像和模型卷，下次
+安装直接使用已有镜像、不用重新拉取。捆绑的 CLI 1.2.9 里 `uninstall-runner` 走的是
+同一条清理路径，只有它的可选参数才会连镜像和模型卷一起删掉。
 
 ### 从 WebGUI 使用
 
@@ -126,12 +136,23 @@ docker model run ai/smollm2:360M-Q4_K_M "Hello"
 
 - 顶部横幅：插件图标、一段简短说明、三个实时状态标签（CLI、Runner、Models），
   以及一个 **Refresh** 按钮；
-- **Status**：捆绑的 CLI 版本、上游制品，以及 `docker model version` 的输出；
-- **Model Runner**：runner 的运行状态，以及安装（纯 CPU / GPU 自动探测）和移除
-  runner 的按钮；
+- **Status**：插件版本、捆绑的 docker-model 版本、上游制品，以及
+  `docker model version` 的输出——按字段拆成客户端版本、客户端平台、服务端版本、
+  服务端引擎四行；原始输出收在可折叠的 **Raw output** 区块里便于排查，CLI 输出的
+  格式不认识时自动展开；
+- **Model Runner**：runner 的运行状态，以及安装（纯 CPU / GPU 自动探测）、
+  **Stop**（停止）和移除按钮。停止只移除容器，runner 镜像和模型卷都会保留；
+  每个按钮只在该状态下可用；
+- **Network**：runner API 的监听地址、容器实际发布的端口、设置文件，以及
+  **Save** 和 **Recreate runner** 按钮（见下）；
 - **Local models**：本地已有的模型；
-- **Installation**：CLI 插件目录、已安装的二进制，以及等价的终端命令；
+- **Installation**：CLI 插件目录、CLI 可执行文件、已安装的二进制，以及等价的
+  终端命令（含保存的 `--host` 地址）；
 - **Notes**：runner 附带的注意事项。
+
+六张卡片等宽等高：网格会把同一行的卡片拉伸到该行最高的那张，卡片上的按钮因此与
+旁边的卡片对齐；模型列表在卡片内部滚动。网格在 780px 以下单列、780px 起两列、
+1500px 起三列。
 
 所有需要调用 `docker` 的数据都在页面渲染完成后异步加载，因此 runner 停止时也不会
 拖慢页面本身。
@@ -139,6 +160,37 @@ docker model run ai/smollm2:360M-Q4_K_M "Hello"
 页面跟随 Unraid WebGUI 的语言。插件自带翻译文件，放在页面同级的 `locales/` 目录里：
 `en_US.json` 是英文基准，`zh_CN.json` 是简体中文。新增语言只需把一份键名相同的
 `<locale>.json` 放进该目录即可。
+
+### runner 的网络发布
+
+runner API **默认发布在 `0.0.0.0`**，局域网内任何设备都可以通过
+`http://<NAS-IP>:12434` 使用它。这是刻意的：`docker model` 没有 `--network`
+参数，只能用 `--host <ip>` 决定容器端口发布到哪个地址；而它自己的默认值
+（`127.0.0.1`，再额外绑一个 docker bridge 网关地址）只有本机访问得到。
+
+**Network** 卡片负责选择地址：
+
+| 选项 | 效果 |
+|---|---|
+| `0.0.0.0`（默认） | 所有网卡，局域网可访问 |
+| `127.0.0.1` | 仅本机 |
+| 自定义 IPv4 / IPv6 地址 | 指定某一块网卡 |
+
+地址在服务端按 IP 校验后才保存，拼进命令行时再用 `escapeshellarg()` 转义；非法值
+会被拒绝、不会保存。它是插件唯一保存的请求值，也是唯一会进入命令行的请求值。
+地址存在
+`/boot/config/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.cfg`，
+与缓存的安装包一起放在 flash 上，重启后仍在；和该目录下的其它文件一样，卸载插件
+后也会保留。
+
+地址属于容器定义的一部分，改完设置只在下一个容器上生效：**Recreate runner** 会执行
+`docker model reinstall-runner --gpu <探测到的模式> --host <新地址>`，GPU 模式从正在
+运行的容器镜像 tag 反查（`-cuda`、`-rocm`、`-musa`、`-cann`，否则为 `none`；
+查不到时用 `auto`），避免在 GPU 主机上把纯 CPU 的安装悄悄换成 CUDA。端口不会变，
+仍是 `12434`，因为 CLI 连的就是本机的这个端口。
+
+API 依然没有鉴权。`0.0.0.0` 意味着能连到这个网络的任何设备都能用：请用防火墙限制
+`12434`，或者把页面改回 `127.0.0.1`。
 
 ## 从源码构建
 
@@ -260,8 +312,9 @@ Slackware 基础的 Unraid 上可直接运行。
 3. **`docker model pull` 不读 `daemon.json` 的 `registry-mirrors`。**
    runner 直连 registry。受限网络请用带代理前缀的全名，例如
    `docker model pull gh-proxy.org/docker/ai/smollm2:360M-Q4_K_M`。
-4. **runner API 无鉴权。** 默认只绑 `127.0.0.1` 和 docker bridge 网关，
-   不要把 `12434` 端口暴露到不可信网络。
+4. **runner API 无鉴权。** 页面默认把它发布到 `0.0.0.0`，局域网内所有设备都能
+   访问。不需要时在页面上改成 `127.0.0.1`，或用防火墙限制 `12434` 端口；不要暴露
+   到不可信网络。
 
 ## 与 Unraid 官方插件规范的对照
 
@@ -286,7 +339,7 @@ Slackware 基础的 Unraid 上可直接运行。
 | Unraid 插件 | `unraid-plugin-docker-model` | `<PLUGIN name="...">` |
 | `.plg` 文件 | `unraid-plugin-docker-model.plg` | 放 `/boot/config/plugins/` |
 | 代理版 `.plg` | `unraid-plugin-docker-model-proxy.plg` | 与主版**二选一**安装 |
-| flash 缓存目录 | `/boot/config/plugins/unraid-plugin-docker-model/` | 存放 txz |
+| flash 缓存目录 | `/boot/config/plugins/unraid-plugin-docker-model/` | 存放 txz 和设置文件 `unraid-plugin-docker-model.cfg` |
 | Slackware 包 | `unraid-plugin-docker-model-<插件版本>-x86_64-1.txz` | 由 `upgradepkg` 安装 |
 | 安装的二进制 | `/usr/libexec/docker/cli-plugins/docker-model` | **名字固定** |
 | WebGUI 页面 | `/usr/local/emhttp/plugins/unraid-plugin-docker-model/DockerModelRunner.page` | `launch` 属性指向它，以卡片形式显示在 `Settings → 用户程序` 下 |

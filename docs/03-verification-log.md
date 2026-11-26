@@ -266,3 +266,51 @@ sentiment analysis, topic modeling, and language translation.
 
 同机实测 smollm2-360M 为秒级响应。1.5B Q4 的推算值见会话记录：
 生成 14–18 tok/s、预填充 180–280 tok/s（瓶颈为 4 通道 DDR3-1600 + 无 AVX2）。
+
+## 八、2026-11-26 WebGUI 改动的本地验证
+
+本次改动（版本信息结构化、Stop 按钮、网络卡片、卡片布局）在**开发机**上验证，不是
+在真实 Unraid 的 Dynamix 里渲染的；真机渲染仍然待做（见 `docs/05` 第四节）。
+
+### 8.1 捆绑二进制的命令面
+
+从 `download.docker.com` 重新下载 `docker-model-plugin 1.2.9`，SHA256 与 apt 索引
+一致（`0d3a9ff3…ef197ea9`），说明打包进插件的就是上游产物；再从 `data.tar.xz` 里
+取出 `docker-model`（28,180,642 B）检索字符串：
+
+| 检索项 | 结果 |
+|---|---|
+| `stop-runner` / `start-runner` / `restart-runner` | ✅ 存在 |
+| `reinstall-runner` / `install-runner` / `uninstall-runner` | ✅ 存在 |
+| `--host` / `Host address to bind Docker Model Runner` | ✅ 存在 |
+| `Client:` / `Engine:` / `(not reachable)` | ✅ 存在 |
+
+→ 页面用的 `stop-runner`、`reinstall-runner` 和 `--host` 在捆绑的 1.2.9 里确实存在，
+版本输出也确实是 `Client:` / `Server:` 两段式，解析器不是照文档猜的。
+
+### 8.2 PHP 端（本地 PHP 8.4 + 假 docker CLI）
+
+| 检查 | 结果 |
+|---|---|
+| 四个 PHP 文件 `php -l` | ✅ 无语法错误 |
+| `docker model version` 解析（含 `(not reachable)`、未知布局） | ✅ |
+| `--host` 校验（IPv4 / IPv6 / 非法值 / 空） | ✅ |
+| 设置文件写入、回读、非法值回退默认 `0.0.0.0` | ✅ |
+| GPU 模式从镜像 tag 反查（cpu/cuda/rocm） | ✅ |
+| `Status.php` 输出结构（version / runner / runner_ports / models / settings） | ✅ |
+| `Action.php` save-settings 写入 + 非法地址拒绝 + 跨源拒绝 | ✅ |
+
+### 8.3 页面渲染（Playwright + 本地 PHP 服务器 + 假 docker）
+
+在 1440 / 1100 / 700 px 三种宽度、中英文两种语言下截图测量：
+
+- 六张卡片齐全，**同一行的卡片高度完全相等**（1440 px 下 316/316、301/301、303/303）
+- Status 卡显示解析后的四行（客户端版本 1.2.9、客户端平台 linux/amd64、服务端版本
+  1.0.0、服务端引擎 Docker Engine），原始输出收在折叠块里
+- runner 运行中：安装按钮禁用、停止/卸载/重建可用；停止状态相反（已用假 CLI 状态切换验证）
+- 命令失败时：红色提示条显示 CLI 报错，原始输出自动展开
+- Network 卡：下拉框回显 `0.0.0.0`、已发布端口显示 `0.0.0.0:12434->12434/tcp, …`
+- 浏览器控制台：**无错误**（无 4xx/5xx 请求、无 JS 异常）
+
+> 这次验证覆盖的是「页面结构与交互逻辑」，不是真实 Docker 守护进程的行为；后者仍需
+> 在真机上点一遍 Stop / 保存 / 重建 runner。

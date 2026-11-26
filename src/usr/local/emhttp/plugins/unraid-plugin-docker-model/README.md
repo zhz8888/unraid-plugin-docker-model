@@ -1,9 +1,9 @@
 **Docker Model Runner**
 
-This plugin installs the docker model plugin package on your Unraid server and adds a simple manager page to the web ui.
+This plugin installs the docker model CLI plugin package on your Unraid server and adds a manager page to the web ui.
 
-The CLI plugin is installed into `/usr/libexec/docker/cli-plugins/`, the Model Runner container is deployed on demand with `docker model install-runner`. Plugin version `@@PLUGIN_VERSION@@`, bundled docker-model `@@UPSTREAM_VERSION@@`.
+The CLI plugin is installed into `/usr/libexec/docker/cli-plugins/`; the Model Runner container is deployed, stopped and removed from the page. Plugin version `@@PLUGIN_VERSION@@`, bundled docker-model `@@UPSTREAM_VERSION@@`.
 
-The runner API listens on `127.0.0.1:12434` without authentication, do not expose that port to untrusted networks.
+The runner API is published on all network interfaces (`0.0.0.0`) by default, so other devices on the network can use it. The API has no authentication: restrict it to the server or to one address on the page, or block port `12434` with a firewall, and never expose it to an untrusted network.
 
 Upstream: <https://github.com/docker/model-runner>

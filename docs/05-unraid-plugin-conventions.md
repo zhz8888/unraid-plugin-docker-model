@@ -138,7 +138,9 @@ done
 `/boot/config/plugins/<name>/` 放持久化配置。
 
 **本项目的做法**：目录名与插件名一致（`unraid-plugin-docker-model`），
-WebGUI 页面在包里，随 txz 一起安装。
+WebGUI 页面在包里，随 txz 一起安装。页面自己的设置只有监听地址一项，存在
+`/boot/config/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.cfg`
+（键 `DMR_HOST`），由页面写入。
 
 ### 1.8 CA 收录的硬性要求
 

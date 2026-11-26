@@ -23,6 +23,98 @@ the WebGUI page.
 
 ## [Unreleased]
 
+The bundled `docker-model-plugin` stays at 1.2.9. This release reworks the
+WebGUI page: the version output of the CLI is parsed into localized rows, the
+runner can be stopped from the page without touching its image or models, a new
+Network card publishes the runner API on the LAN by default and stores the
+chosen address on the flash device, and the page is a grid of six equally sized
+cards.
+
+### Added
+
+- A **Stop** button on the Model Runner card for `docker model stop-runner`.
+  The runner could only be installed or removed until now, so stopping it meant
+  removing the container through Uninstall. Stop is enabled only while the
+  runner is running, and the card says what upstream keeps: the runner image
+  and the model volume stay, so the next install does not pull the image again
+- A **Network** card that sets the address the runner API is published on. The
+  runner used to be reachable from this server only: the CLI publishes the
+  container port on `127.0.0.1` and on the docker bridge gateway, and the
+  latter is not routable from the LAN. The card offers `0.0.0.0` (all
+  interfaces, the new default), `127.0.0.1` (server only) and a custom IPv4 or
+  IPv6 address; with the default, other devices on the network reach the
+  runner at `http://<NAS-IP>:12434`. The card also shows the addresses the
+  container is actually published on, so the effect of the setting is visible
+  instead of having to be trusted
+- `save-settings` is the only action of the endpoint that is synchronous,
+  and it sits behind the same origin and token checks as the others. The
+  address is validated as an IP address on the server (`filter_var()` with
+  `FILTER_VALIDATE_IP`) and quoted with `escapeshellarg()` when it is
+  appended to the command line; an invalid value is refused instead of stored,
+  because it later becomes `docker model install-runner --host <ip>`. It is
+  the only request value the plugin stores, and the only one that ever reaches
+  a command line
+- The listen address is saved in
+  `/boot/config/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.cfg`,
+  an INI file with a single `DMR_HOST` key that is written to a temporary file
+  and renamed, so an interrupted request cannot leave half a file behind. It
+  sits next to the cached package on the flash device, where it survives a
+  reboot and, like the rest of that directory, a plugin removal. A missing,
+  unreadable or invalid value falls back to the `0.0.0.0` default, so a hand
+  edited file cannot break the page or the install command
+- A **Recreate runner** button on the Network card, because the published
+  address is fixed when the container is created and a changed setting only
+  affects the next container. It runs
+  `docker model reinstall-runner --gpu <detected> --host <address>`, with the
+  GPU mode read back from the image tag of the running container (`-cuda`,
+  `-rocm`, `-musa`, `-cann`, otherwise `none`, `auto` when the container
+  cannot be queried), so a CPU-only installation on a GPU host does not
+  silently become a CUDA one
+
+### Changed
+
+- The page is a grid of six equally sized cards instead of five cards with a
+  full-width Notes card: Status, Model Runner, Network, Local models,
+  Installation and Notes.
+  The grid stretches every card of a row to the height of the tallest one, and
+  the body of a card is a column, so the action rows of a row line up instead
+  of floating in the middle of differently sized cards; the model list scrolls
+  inside its card instead of stretching it. The grid is one column below
+  780 px, two columns from 780 px and three columns from 1500 px
+- `sheets/DockerModelRunner.css` is rewritten for that layout: typography,
+  spacing, a section heading inside a card, notice and raw-output blocks, the
+  field row of the address select, and warning styled Stop and Uninstall
+  buttons. It still uses only theme variables with fallbacks, so it follows
+  the light and the dark theme
+- The status and action endpoints return the shape the new page needs.
+  `Status.php` reports the parsed version fields, the state and the published
+  ports of the runner, the local models and the stored listen address instead
+  of the raw version text, and `Action.php` accepts the same fixed action names
+  plus `save-settings`, appends the stored `--host` to install and reinstall,
+  and answers every action with `{ok, message}` (`host` on a save). The request
+  still selects an action and never a command; the listen address is the one
+  value that reaches a command line, and only after validation
+- The terminal command list on the Installation card shows the commands the
+  page actually runs, with the stored `--host` address and `stop-runner` and
+  `reinstall-runner` included
+
+### Fixed
+
+- The Status card showed the raw output of `docker model version` inside a
+  single table cell, so the two-section block of the CLI wrapped into an
+  unreadable blob and a failed command wrote its error into the cell as if it
+  were a version. The output is parsed into one row per field now — client
+  version, client platform, server version, server engine — the raw text lives
+  in a collapsed **Raw output** block that opens automatically when the CLI
+  prints a layout the parser does not know, and a failure shows a localized
+  notice with the CLI message instead
+- The engine kinds the CLI prints (`Docker Engine`,
+  `Docker Engine (Manual Install)`, `Docker Desktop`, `Docker Cloud`) and
+  its `(not reachable)` placeholder were shown in English next to translated
+  labels. Both are translated now, and the strings are in
+  `locales/en_US.json` and `locales/zh_CN.json`; `scripts/check-locales.py`
+  keeps their key sets equal
+
 ## [20261111] - 2026-11-11
 
 The bundled `docker-model-plugin` stays at 1.2.9. This release publishes the

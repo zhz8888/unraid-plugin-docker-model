@@ -54,7 +54,7 @@ flowchart TD
   RUNNER["容器 docker-model-runner<br/>(docker/model-runner)"]
   BACKEND["llama.cpp 后端<br/>CPU / CUDA / ROCm / Vulkan"]
   VOLUME["卷 docker-model-runner-models<br/>挂载到 /models"]
-  PORT["监听 127.0.0.1:12434<br/>(+ 172.17.0.1:12434)"]
+  PORT["默认发布 0.0.0.0:12434<br/>（可改为 127.0.0.1 或自定义地址）"]
 
   CLI --> PLUGIN
   PLUGIN -->|"docker model install-runner"| RUNNER
@@ -73,6 +73,42 @@ flowchart TD
 1. 969MB 镜像塞进 flash（FAT32）不现实，且 Unraid flash 只有 32GB 上限
 2. runner 镜像有 `cpu` / `cuda` / `rocm` / `vllm-cuda` 多个变体，取决于用户硬件
 3. 镜像走 `docker pull` 天然支持 registry mirror，插件走文件分发不支持
+
+### runner 的网络发布：`--host`，不是 `--network host`
+
+`docker model` CLI 1.2.9 **没有 `--network` 参数**，无法把 runner 容器挂到 host
+网络上。它提供的是 `--host <ip>`：`install-runner` / `start-runner` /
+`reinstall-runner` 用这个地址为容器的 12434 端口生成端口映射
+（`CreateControllerContainer` 里的 `PortBindings`）。差别是实质性的：
+
+| 地址 | 结果 |
+|---|---|
+| CLI 默认（不传 `--host`） | 绑 `127.0.0.1`，并额外绑 docker bridge 网关地址（如 `172.17.0.1`）；后者只在宿主机内可见，局域网访问不到 |
+| `--host 0.0.0.0` | 绑所有网卡，局域网设备可通过 `http://<NAS-IP>:12434` 访问 |
+| `--host 192.168.1.10` | 只绑指定的那块网卡地址 |
+
+本插件 WebGUI 页面的默认值是 `0.0.0.0`：安装 runner 时拼成
+`docker model install-runner --gpu none|auto --host 0.0.0.0`。页面上的「网络」
+卡片可以在 `0.0.0.0`、`127.0.0.1` 和自定义 IPv4/IPv6 之间切换；地址在服务端用
+`filter_var(..., FILTER_VALIDATE_IP)` 校验，拼进命令时再用 `escapeshellarg()`
+转义，非法值直接拒绝保存。
+
+**设置存在哪**：`/boot/config/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.cfg`，
+INI 格式，只有一个键 `DMR_HOST`；写入时先写 `*.tmp` 再 `rename()`，掉电不会留下
+半个文件。它和缓存的安装包放在一起，重启后仍在，插件卸载后也保留（与
+`/boot/config/plugins/<name>/` 下其它文件一致）。文件缺失、读不出或值不是合法 IP
+时回退到默认 `0.0.0.0`。
+
+**改完要重建容器**：发布地址在容器创建时就固定了，改设置不会影响已经在跑的
+runner。页面因此有「重建 runner」按钮，执行
+`docker model reinstall-runner --gpu <探测到的模式> --host <新地址>`；GPU 模式从
+现有容器的镜像 tag 反查（`docker inspect docker-model-runner` 加
+`--format {{.Config.Image}}` 的输出：`-cuda` / `-rocm` / `-musa` /
+`-cann`，否则 `none`；查不到时用 `auto`），避免在 GPU 主机上把纯 CPU 的
+安装变成 CUDA。端口固定 `12434` 不变，因为 CLI 连的就是本机的这个端口。
+
+安全边界不变：API 无鉴权。默认发布到所有网卡意味着局域网内谁都能调用；不需要时
+在页面上改回 `127.0.0.1`，或用防火墙挡住 12434。
 
 ## 三、安装流程（`.plg` 的 `<FILE Run>`）
 

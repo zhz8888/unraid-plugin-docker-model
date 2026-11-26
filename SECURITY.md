@@ -45,8 +45,10 @@ Please include:
 These are documented limitations rather than vulnerabilities, but they matter
 when deploying:
 
-- The Docker Model Runner API is **unauthenticated**. The runner binds to
-  `127.0.0.1` and the docker bridge gateway by default. Do not expose port
-  `12434` to untrusted networks.
+- The Docker Model Runner API is **unauthenticated**. The WebGUI page
+  publishes it on `0.0.0.0` by default, so every device that can reach the
+  server can call it; set the listen address to `127.0.0.1` on the page, or
+  restrict port `12434` with a firewall. Do not expose that port to untrusted
+  networks.
 - `docker model pull` ignores the `registry-mirrors` configured in
   `daemon.json`; only fully qualified image names honour a proxy prefix.

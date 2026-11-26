@@ -251,17 +251,21 @@ wrapper XML 的 `<PluginURL>` 必须与 `.plg` 的 `pluginURL` 属性**完全一
 WebGUI 页面随 Slackware 包一起安装，位于
 `/usr/local/emhttp/plugins/unraid-plugin-docker-model/`：
 
-- **Settings → Docker Model Runner**（`DockerModelRunner.page`）
-  - 插件版本、捆绑的 docker-model 版本、CLI 二进制路径与校验结果
-  - Model Runner 运行状态
-  - 本地已有模型列表
-- **Settings 页签**（`DockerModelRunner-1-Settings.page`）
-  - 一键部署 runner（CPU / GPU auto），后台执行，日志写 `/var/log/docker-model-runner-install.log`
-  - 一键移除 runner（保留镜像与模型卷）
-  - 手动命令速查
+- **Settings → 用户程序 → Docker Model Runner**（`DockerModelRunner.page`），
+  六张等宽等高卡片：状态、Model Runner、网络、本地模型、安装信息、注意事项
+  - 状态：插件版本、捆绑的 docker-model 版本、上游制品，以及 `docker model version`
+    解析后的客户端版本/平台、服务端版本/引擎（原始输出折叠，格式不认识时自动展开）
+  - Model Runner：安装（纯 CPU / 自动探测 GPU）、停止、卸载；后台执行，日志写
+    `/var/log/docker-model-runner-*.log`。停止只移除容器，镜像与模型卷保留
+  - 网络：runner API 的监听地址（默认 `0.0.0.0`）、容器实际发布的端口、设置文件，
+    以及「保存」和「重建 runner」按钮（见 `docs/02` 第二节）
+  - 本地模型列表；安装信息（CLI 目录、CLI 可执行文件、已安装状态、等价终端命令）；
+    注意事项（registry 前缀、无鉴权 API）
 
 后端 PHP 走 `docker model` CLI，用 `proc_open` + 超时保证 WebGUI 不被卡住；
-操作接口只接受固定的 action 名，命令不来自请求，避免 shell 注入。
+操作接口只接受固定的 action 名，命令不来自请求。唯一的例外是监听地址：它先按 IP
+地址校验，拼进命令时再用 `escapeshellarg()` 转义，并存在
+`/boot/config/plugins/<name>/<name>.cfg` 里。
 
 > ⚠️ 页面**尚未在真实 Unraid 主机的 Dynamix 里验证过**，见 `docs/05` 第四节。
 
