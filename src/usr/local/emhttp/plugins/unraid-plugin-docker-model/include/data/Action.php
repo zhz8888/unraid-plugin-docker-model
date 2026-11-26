@@ -7,7 +7,10 @@
  *
  * The endpoint only accepts a fixed set of action names. The command that
  * belongs to an action is defined here, never taken from the request, so no
- * request value ever reaches the shell.
+ * request value ever reaches the shell. The listen address of the runner is
+ * the only value of the page that ends up in a command line; it is validated
+ * as an IP address by dmr_valid_host() and quoted with escapeshellarg() on
+ * top of that.
  *
  * Two guards sit in front of the whitelist. dmr_request_is_same_origin()
  * compares scheme, host and port of the Origin/Referer with the host the
@@ -85,7 +88,7 @@ function dmr_request_origin()
 /**
  * Whether the request comes from a page of this WebGUI.
  *
- * The endpoint changes state (it deploys and removes the Model Runner
+ * The endpoint changes state (it deploys, stops and removes the Model Runner
  * container), so a page from another origin must not be able to trigger it.
  * A request without Origin and without Referer is rejected: a browser sends
  * Origin on a POST, so a request without one is a script, and scripts have no
@@ -144,16 +147,43 @@ function dmr_run_in_background($command, $logfile)
 // runner image of about 1 GB and `uninstall-runner` has to talk to the Docker
 // daemon, so a synchronous run can exceed the FastCGI request timeout and
 // leave the browser with an empty response.
+//
+// The listen address is read from the settings file of the plugin. It is
+// appended to the install command, because that is what `docker model`
+// supports: the CLI has no `--network` flag, it publishes the container port
+// with `--host <ip>`. Publishing on 0.0.0.0 is what makes the runner reachable
+// from other devices on the LAN, the default of the CLI only binds 127.0.0.1.
+$settings = dmr_settings();
+$hostArgument = ' --host ' . escapeshellarg($settings['host']);
+
 $commands = array(
     'install-runner-cpu' => array(
-        'command' => 'docker model install-runner --gpu none',
+        'command' => 'docker model install-runner --gpu none' . $hostArgument,
         'logfile' => '/var/log/docker-model-runner-install.log',
         'message' => dmr_t('action.install_cpu'),
     ),
     'install-runner-gpu' => array(
-        'command' => 'docker model install-runner --gpu auto',
+        'command' => 'docker model install-runner --gpu auto' . $hostArgument,
         'logfile' => '/var/log/docker-model-runner-install.log',
         'message' => dmr_t('action.install_gpu'),
+    ),
+    'stop-runner' => array(
+        'command' => 'docker model stop-runner',
+        'logfile' => '/var/log/docker-model-runner-stop.log',
+        'message' => dmr_t('action.stop'),
+    ),
+    // Recreating the container is how a changed listen address takes effect:
+    // the address of a container is fixed when it is created. The GPU mode is
+    // read back from the running container, so a CPU-only installation on a
+    // GPU host does not silently turn into a CUDA one.
+    'reinstall-runner' => array(
+        'command' => static function () use ($hostArgument) {
+            return 'docker model reinstall-runner --gpu '
+                . escapeshellarg(dmr_runner_gpu_mode())
+                . $hostArgument;
+        },
+        'logfile' => '/var/log/docker-model-runner-reinstall.log',
+        'message' => dmr_t('action.reinstall'),
     ),
     'uninstall-runner' => array(
         'command' => 'docker model uninstall-runner',
@@ -164,6 +194,7 @@ $commands = array(
 
 $ok = false;
 $message = dmr_t('action.unknown');
+$extra = array();
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     http_response_code(405);
@@ -177,16 +208,50 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 } else {
     $action = isset($_POST['action']) ? (string) $_POST['action'] : '';
 
-    if (!isset($commands[$action])) {
+    if ($action === 'save-settings') {
+        // The settings are the only request values that are stored, and the
+        // only one that later ends up in a command line. An invalid value is
+        // refused instead of being stored, so the install command can never
+        // carry something the CLI would reject.
+        $host = trim(isset($_POST['host']) ? (string) $_POST['host'] : '');
+
+        if (!dmr_valid_host($host)) {
+            $message = dmr_t('action.invalid_host');
+        } elseif (!dmr_save_settings(array('host' => $host))) {
+            $message = sprintf(dmr_t('action.save_failed'), DMR_CONFIG_FILE);
+        } else {
+            $ok = true;
+            $message = sprintf(dmr_t('action.settings_saved'), $host);
+            $extra['host'] = $host;
+        }
+    } elseif (!isset($commands[$action])) {
         $message = dmr_t('action.unknown');
     } elseif (!dmr_binary_installed()) {
         $message = dmr_t('action.not_installed');
-    } elseif (dmr_run_in_background($commands[$action]['command'], $commands[$action]['logfile'])) {
-        $ok = true;
-        $message = $commands[$action]['message'];
     } else {
-        $message = sprintf(dmr_t('action.could_not_start'), $commands[$action]['logfile']);
+        $command = $commands[$action]['command'];
+        if (is_callable($command)) {
+            $command = $command();
+        }
+
+        $logfile = $commands[$action]['logfile'];
+        if (dmr_run_in_background($command, $logfile)) {
+            $ok = true;
+            $message = $commands[$action]['message'];
+        } else {
+            $message = sprintf(dmr_t('action.could_not_start'), $logfile);
+        }
     }
 }
 
-echo json_encode(array('ok' => $ok, 'message' => $message));
+$payload = array_merge(array('ok' => $ok, 'message' => $message), $extra);
+
+// The messages are translated text, so a locale file that carries a byte that
+// is not valid UTF-8 must not turn the whole response into an empty body.
+$json = json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
+if (!is_string($json)) {
+    http_response_code(500);
+    $json = '{"ok":false,"message":"unavailable"}';
+}
+
+echo $json;

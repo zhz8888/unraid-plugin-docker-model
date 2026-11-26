@@ -22,6 +22,11 @@ if (!defined('DMR_CLI_DIR')) {
 if (!defined('DMR_CLI_BINARY')) {
     define('DMR_CLI_BINARY', DMR_CLI_DIR . '/docker-model');
 }
+if (!defined('DMR_CONFIG_FILE')) {
+    // The Unraid conventions put the configuration of a plugin on the flash
+    // device under /boot/config/plugins/<name>/, next to the cached package.
+    define('DMR_CONFIG_FILE', '/boot/config/plugins/' . DMR_PLUGIN_NAME . '/' . DMR_PLUGIN_NAME . '.cfg');
+}
 
 /**
  * Read the build metadata that the package ships next to this file.
@@ -157,19 +162,422 @@ function dmr_cli_version()
 }
 
 /**
+ * Truncate a text to a number of bytes.
+ *
+ * The output of an external command can be arbitrarily long, and the page
+ * embeds it. A cut in the middle of a multi byte character is acceptable:
+ * Status.php encodes with JSON_INVALID_UTF8_SUBSTITUTE, so the broken byte is
+ * replaced instead of turning the whole response into an empty body.
+ *
+ * @param string $text
+ * @param int    $limit
+ *
+ * @return string
+ */
+function dmr_truncate($text, $limit = 4000)
+{
+    $text = (string) $text;
+    if (strlen($text) <= $limit) {
+        return $text;
+    }
+
+    return substr($text, 0, $limit) . "\n...";
+}
+
+/**
+ * Parse the output of `docker model version` into its fields.
+ *
+ * The CLI prints two sections:
+ *
+ *     Client:
+ *      Version:    1.2.9
+ *      OS/Arch:    linux/amd64
+ *
+ *     Server:
+ *      Version:    1.0.0
+ *      Engine:     Docker Engine
+ *
+ * When the runner is not running the server section still exists, but its
+ * values are "(not reachable)". A release of the CLI that prints an
+ * unexpected layout yields structured = false; the page then falls back to the
+ * raw output instead of showing a half parsed table.
+ *
+ * @param string $output
+ *
+ * @return array{structured:bool,client:array<string,string>,server:array<string,string>}
+ */
+function dmr_parse_version_output($output)
+{
+    $result = array(
+        'structured' => false,
+        'client' => array('version' => '', 'platform' => ''),
+        'server' => array('version' => '', 'engine' => ''),
+    );
+
+    $section = '';
+
+    foreach (preg_split('/\R/', (string) $output) as $line) {
+        $trimmed = trim($line);
+        if ($trimmed === '') {
+            continue;
+        }
+
+        $heading = strtolower(rtrim($trimmed, ':'));
+        if ($heading === 'client' || $heading === 'server') {
+            $section = $heading;
+            $result['structured'] = true;
+            continue;
+        }
+
+        if ($section === '' || !preg_match('/^\s*([A-Za-z][A-Za-z \/&()_-]*?)\s*:\s*(.*)$/', $line, $matches)) {
+            continue;
+        }
+
+        $key = strtolower(trim($matches[1]));
+        $value = trim($matches[2]);
+
+        if ($section === 'client') {
+            if ($key === 'version') {
+                $result['client']['version'] = $value;
+            } elseif ($key === 'os/arch') {
+                $result['client']['platform'] = $value;
+            }
+            continue;
+        }
+
+        if ($key === 'version') {
+            $result['server']['version'] = $value;
+        } elseif ($key === 'engine') {
+            $result['server']['engine'] = $value;
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * The version report of the CLI, normalised for the page.
+ *
+ * @return array{status:string,structured:bool,client:array<string,string>,server:array<string,string>,raw:string,error:string}
+ */
+function dmr_version_report()
+{
+    $report = array(
+        'status' => 'missing',
+        'structured' => false,
+        'client' => array('version' => '', 'platform' => ''),
+        'server' => array('version' => '', 'engine' => ''),
+        'raw' => '',
+        'error' => '',
+    );
+
+    if (!dmr_binary_installed()) {
+        return $report;
+    }
+
+    $result = dmr_cli_version();
+    if ($result === null) {
+        $report['status'] = 'unavailable';
+
+        return $report;
+    }
+
+    $report['raw'] = dmr_truncate(trim($result['stdout'] . "\n" . $result['stderr']), 4000);
+
+    if ($result['code'] !== 0) {
+        $report['status'] = 'error';
+        $report['error'] = dmr_truncate(trim($result['stdout'] . ' ' . $result['stderr']), 400);
+
+        return $report;
+    }
+
+    $parsed = dmr_parse_version_output($result['stdout']);
+    $report['structured'] = $parsed['structured'];
+    $report['client'] = $parsed['client'];
+    $report['server'] = $parsed['server'];
+    $report['status'] = 'ok';
+
+    return $report;
+}
+
+/**
+ * Render a value of the version report for the page.
+ *
+ * @param string $value
+ *
+ * @return string
+ */
+function dmr_version_text($value)
+{
+    $value = trim((string) $value);
+
+    if (preg_match('/^\(not reachable\)$/i', $value)) {
+        return dmr_t('state.unreachable');
+    }
+
+    if ($value === '') {
+        return dmr_t('state.unknown');
+    }
+
+    return $value;
+}
+
+/**
+ * Render the engine of the version report for the page.
+ *
+ * The CLI prints the engine kind as an English phrase ("Docker Engine"). The
+ * page translates the kinds it knows and keeps an unknown kind verbatim, so a
+ * new engine kind of a future CLI release still shows up.
+ *
+ * @param string $engine
+ *
+ * @return string
+ */
+function dmr_engine_text($engine)
+{
+    $engine = trim((string) $engine);
+
+    $keys = array(
+        'Docker Engine' => 'engine.docker_engine',
+        'Docker Engine (Manual Install)' => 'engine.docker_engine_manual',
+        'Docker Desktop' => 'engine.docker_desktop',
+        'Docker Cloud' => 'engine.docker_cloud',
+    );
+
+    if (isset($keys[$engine])) {
+        return dmr_t($keys[$engine]);
+    }
+
+    if (preg_match('/^\(not reachable\)$/i', $engine)) {
+        return dmr_t('state.unreachable');
+    }
+
+    if ($engine === '') {
+        return dmr_t('state.unknown');
+    }
+
+    return $engine;
+}
+
+/**
+ * The state of the Model Runner container.
+ *
+ * The ports are read in the same call as the name, so the page can show the
+ * addresses the runner is actually published on, which is how a change of the
+ * network setting becomes visible.
+ *
+ * @return array{running:bool,ports:string}
+ */
+function dmr_runner_state()
+{
+    $state = array('running' => false, 'ports' => '');
+
+    if (!dmr_binary_installed()) {
+        return $state;
+    }
+
+    // Two calls with one field each instead of one call with a separator: the
+    // format is passed to the shell, and a separator such as "|" is a pipe
+    // there, so it would have to survive the quoting of every shell the page
+    // may run under. One field per call has nothing to escape.
+    $names = dmr_exec('docker ps --filter name=docker-model-runner --filter status=running --format "{{.Names}}" 2>&1', 15);
+    if ($names['code'] !== 0 || strpos($names['stdout'], 'docker-model-runner') === false) {
+        return $state;
+    }
+
+    $state['running'] = true;
+
+    $ports = dmr_exec('docker ps --filter name=docker-model-runner --filter status=running --format "{{.Ports}}" 2>&1', 15);
+    if ($ports['code'] === 0) {
+        $state['ports'] = trim($ports['stdout']);
+    }
+
+    return $state;
+}
+
+/**
  * Whether the Model Runner container is up.
  *
  * @return bool
  */
 function dmr_runner_running()
 {
+    $state = dmr_runner_state();
+
+    return $state['running'];
+}
+
+/**
+ * Map an image name or tag to the GPU mode the CLI was installed with.
+ *
+ * The image variants name the GPU support: docker/model-runner:latest is the
+ * CPU build, docker/model-runner:latest-cuda the CUDA build and so on. The
+ * suffix decides, because the tag may also carry the version.
+ *
+ * @param string $label
+ *
+ * @return string
+ */
+function dmr_gpu_mode_from_label($label)
+{
+    $label = strtolower((string) $label);
+
+    foreach (array('cuda', 'rocm', 'musa', 'cann') as $mode) {
+        $suffix = '-' . $mode;
+        if (strlen($label) > strlen($suffix) && substr($label, -strlen($suffix)) === $suffix) {
+            return $mode;
+        }
+    }
+
+    return 'none';
+}
+
+/**
+ * The GPU mode the existing runner container was created with.
+ *
+ * The page needs it to recreate the container without changing the GPU
+ * support it was installed with: `docker model reinstall-runner` defaults to
+ * `--gpu auto`, which would turn a CPU-only installation on a GPU host into a
+ * CUDA one.
+ *
+ * @return string none, cuda, rocm, musa or cann; auto when it is unknown
+ */
+function dmr_runner_gpu_mode()
+{
     if (!dmr_binary_installed()) {
+        return 'auto';
+    }
+
+    $result = dmr_exec('docker inspect docker-model-runner --format "{{.Config.Image}}" 2>&1', 15);
+    if ($result['code'] !== 0) {
+        return 'auto';
+    }
+
+    $image = trim($result['stdout']);
+    if ($image === '') {
+        return 'auto';
+    }
+
+    return dmr_gpu_mode_from_label($image);
+}
+
+/**
+ * The defaults of the settings the page manages.
+ *
+ * The runner API is published on every host interface by default, so other
+ * devices on the LAN can reach it. The CLI binds it to 127.0.0.1 only, and
+ * the bridge gateway address it adds on top of that is not routable from
+ * outside the host.
+ *
+ * @return array<string,string>
+ */
+function dmr_setting_defaults()
+{
+    return array(
+        'host' => '0.0.0.0',
+    );
+}
+
+/**
+ * Whether a value is an IP address the CLI accepts for `--host`.
+ *
+ * The flag takes an IP address, not a host name: install-runner parses it
+ * with netip.ParseAddr and exits on anything else.
+ *
+ * @param mixed $value
+ *
+ * @return bool
+ */
+function dmr_valid_host($value)
+{
+    if (!is_string($value)) {
         return false;
     }
 
-    $result = dmr_exec('docker ps --filter name=docker-model-runner --filter status=running --format "{{.Names}}" 2>&1', 15);
+    $value = trim($value);
 
-    return $result['code'] === 0 && strpos($result['stdout'], 'docker-model-runner') !== false;
+    return $value !== '' && filter_var($value, FILTER_VALIDATE_IP) !== false;
+}
+
+/**
+ * The settings of the plugin, merged over the defaults.
+ *
+ * A value that is missing or invalid falls back to the default, so a hand
+ * edited file cannot break the page or the install command.
+ *
+ * @return array<string,string>
+ */
+function dmr_settings()
+{
+    $settings = dmr_setting_defaults();
+
+    if (!is_readable(DMR_CONFIG_FILE)) {
+        return $settings;
+    }
+
+    $parsed = @parse_ini_file(DMR_CONFIG_FILE, false, INI_SCANNER_RAW);
+    if (!is_array($parsed)) {
+        return $settings;
+    }
+
+    foreach ($parsed as $key => $value) {
+        if (strtolower((string) $key) !== 'dmr_host') {
+            continue;
+        }
+
+        $host = trim((string) $value, "\"'");
+        if (dmr_valid_host($host)) {
+            $settings['host'] = trim($host);
+        }
+    }
+
+    return $settings;
+}
+
+/**
+ * Write the settings file of the plugin.
+ *
+ * The file is written next to its final name and renamed, so an interrupted
+ * request cannot leave a half written file behind.
+ *
+ * @param array<string,string> $values
+ *
+ * @return bool
+ */
+function dmr_save_settings(array $values)
+{
+    $settings = dmr_settings();
+
+    if (array_key_exists('host', $values)) {
+        if (!dmr_valid_host($values['host'])) {
+            return false;
+        }
+        $settings['host'] = trim((string) $values['host']);
+    }
+
+    $dir = dirname(DMR_CONFIG_FILE);
+    if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+        return false;
+    }
+
+    $body = "; Settings of the unraid-plugin-docker-model WebGUI page.\n"
+        . "; The page writes this file; change the values there.\n"
+        . "\n"
+        . 'DMR_HOST="' . str_replace('"', '', $settings['host']) . "\"\n";
+
+    $temporary = DMR_CONFIG_FILE . '.tmp';
+    if (@file_put_contents($temporary, $body) === false) {
+        return false;
+    }
+    @chmod($temporary, 0644);
+
+    if (!@rename($temporary, DMR_CONFIG_FILE)) {
+        @unlink($temporary);
+
+        return false;
+    }
+
+    return true;
 }
 
 /**
