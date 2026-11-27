@@ -161,7 +161,7 @@ flowchart TD
   DEB["curl 下载 deb"]
   PARSE["纯 Python 解析 ar"]
   STAGE["stage/usr/libexec/docker/cli-plugins/docker-model<br/>+ install/slack-desc"]
-  TXZ["tar -cJf dist/unraid-plugin-docker-model-&lt;ver&gt;-x86_64-1.txz"]
+  TXZ["Python tarfile 写出 dist/...txz<br/>固定成员顺序 / mtime / 权限，跨平台可复现"]
   PLG["生成 dist/unraid-plugin-docker-model.plg<br/>（写入 txz 的 SHA256）"]
 
   INDEX -->|"读取 SHA256/Size/Filename"| DEB
@@ -170,6 +170,11 @@ flowchart TD
   STAGE --> TXZ
   TXZ --> PLG
 ```
+
+**为什么不是 `tar` 命令**：归档由 `scripts/build-plugin.sh` 调用 Python 的
+`tarfile` 模块写出——固定 mtime（2020-01-01）、固定成员顺序与权限。GNU tar 与
+bsdtar 的头部字段、成员顺序（依赖 readdir）和 macOS 扩展属性处理都不同，用同一种
+实现才能保证同一版本在任何机器、任何检出目录产出相同的 txz SHA256。
 
 ### 为什么必须自己解析 ar
 

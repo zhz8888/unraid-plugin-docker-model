@@ -36,8 +36,8 @@ GitHub 只发 `dmr`（独立推理二进制，`dmr-v0.1.0` 有 linux-amd64 资�
 | **供应链风险** | 依赖 Docker 官方 apt 源 | 依赖 394 个 go.sum 条目 + 第三方 module proxy | **deb** |
 | **可审计性** | 二进制不可读，只能靠签名链 | 源码可读、可改、可加审计 | 源码 |
 | **可定制性** | 无 | 可打补丁、裁剪、加内部特性 | 源码 |
-| **功能面** | 24 个 `docker model` 子命令 | 完全相同的 24 个（已 diff 验证） | 平 |
-| **gateway 子命令** | 不含（需 `-tags gateway` + Rust 静态库） | 默认构建同样不含 | 平 |
+| **功能面** | 28 个 `docker model` 命令 + `context` 管理命令（1.2.9 `--help`） | 命令集合一致（strings diff 无差异） | 平 |
+| **gateway 子命令** | 含 `gateway` 命令，但未打 `gateway` tag 时是 stub，不可用 | 默认构建同样是 stub | 平 |
 
 ### 补充说明：`make build-cli` 在 Unraid 场景下会直接失败
 
@@ -136,6 +136,8 @@ $ shasum -a 256 docker-model-plugin_1.2.9-..._amd64.deb
 0d3a9ff3d9df36e8000680a178e74b64582a6f77b97dbd9d6ad31f2d0f197ea9
 # 与 apt Packages 索引中的 SHA256 完全一致
 
-$ strings docker-model | grep -o "docker model [a-z-]*" | sort -u | wc -l
-24        # 经 diff 比对，与源码编译产物完全一致
+$ docker model --help
+28 个 Commands + context 管理命令（其中 gateway 是 stub）
+# strings 计数（24）只统计了含连字符的写法，不是命令总数；
+# 对 apt 产物与源码编译产物做 strings diff 时，两边命令集合无差异
 ```

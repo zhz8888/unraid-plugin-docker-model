@@ -9,14 +9,14 @@
 | P1 | 本地构建验证（txz + plg 生成、hash 一致） | ✅ 完成 |
 | P1 | 跨平台可复现构建（Linux CI 与 macOS 本地产物逐字节一致） | ✅ 完成 |
 | P2 | 发布仓库（GitHub Release + `pluginURL` 资产） | ✅ 完成 |
-| P3 | 在真实 Unraid 主机上通过 `.plg` 正式安装验证 | 🔲 **下一步** |
+| P3 | 在真实 Unraid 主机上通过 `.plg` 正式安装验证 | 🔄 部分完成（安装已真机执行；重启/卸载待验证） |
 | P4 | CA（Community Applications）上架 | 🔄 材料已备（`ca_profile.xml` + wrapper XML），待发论坛帖 |
 | P5 | 图形界面（Settings 页） | ✅ 完成（`src/.../DockerModelRunner.page`） |
 | P6 | 对齐 Unraid 官方插件规范 | ✅ 完成（见 `docs/05-unraid-plugin-conventions.md`） |
-| 文档 | `docs/03` 按最终构建方案回填实测哈希 | ⬜ 待办 |
+| 文档 | `docs/03` 按最终构建方案回填实测哈希 | ✅ 完成（2026-11-27 补记最终发布哈希与 Python `tarfile` 方案） |
 
-> 最近一次核对：**2026-11-05**。P2 的完成状态基于已发布的 Release 20261027 实测校验，
-> 而非仅凭提交记录推断。
+> 最近一次核对：**2026-11-27**（上游版本、页面与真机状态）。P2 的完成状态基于已发布
+> Release 的实测校验；20261027 之后还发布了 20261106、20261110、20261111 三个版本。
 
 ---
 
@@ -182,11 +182,12 @@ gh release edit 20261027 --tag 20261027 --title "unraid-plugin-docker-model 2026
 
 ## P3 · 正式安装验证
 
-**下一步**。当前测试机上是**手工**装好的（直接 `cp` 二进制 + `docker tag` 镜像），
-`.plg` 安装器本身还没在真实主机上跑通过。
+**部分完成**。2026-11-09 在 NAS3（Unraid 7.3.2）上观察到代理版 `.plg` 的安装
+产物——注册软链、flash 上的 `.plg` 与缓存 txz、已安装二进制，见
+`docs/03-verification-log.md` §8.4。这说明 `.plg` 安装器已在真实主机上执行成功；
+但**重启后的持久化**与 **`plugin remove` 卸载**仍未验证。
 
-Release 20261027 已发布，`.plg` 可直接取自 Release 资产，无需先在本地构建。
-需要用 `.plg` 走一遍完整流程：
+`.plg` 可直接取自 Release 资产，无需先在本地构建。剩下未完成的验证按下面步骤执行：
 
 ```bash
 # 1. 删除手工安装的副本（此前没有 removepkg 记录，直接删除文件）
@@ -209,12 +210,11 @@ ssh root@<unraid-host> "reboot"
 ssh root@<unraid-host> "docker model version"
 ```
 
-验收标准：
+验收标准（NAS3 上的安装产物已满足前两项，其余待验证）：
 
-- [ ] `plugin install` 无报错
-- [ ] `/var/log/plugins/unraid-plugin-docker-model.plg` 软链已建立
-- [ ] `docker model version` 输出 `v1.2.9`
-- [ ] **重启后**仍可用（验证开机脚本生效）
+- [x] `.plg` 安装产物齐全：注册软链 + flash 上的 `.plg`/缓存 txz + 已安装二进制
+- [x] `docker model version` 输出 `v1.2.9`
+- [ ] 重启后仍可用（验证开机脚本生效）
 - [ ] `plugin remove unraid-plugin-docker-model` 能干净卸载
 - [ ] 卸载后 runner 容器/镜像/卷仍保留（不误删数据）
 
@@ -259,15 +259,19 @@ WebGUI 页面随 Slackware 包一起安装，位于
     `/var/log/docker-model-runner-*.log`。停止只移除容器，镜像与模型卷保留
   - 网络：runner API 的监听地址（默认 `0.0.0.0`）、容器实际发布的端口、设置文件，
     以及「保存」和「重建 runner」按钮（见 `docs/02` 第二节）
-  - 本地模型列表；安装信息（CLI 目录、CLI 可执行文件、已安装状态、等价终端命令）；
-    注意事项（registry 前缀、无鉴权 API）
+  - 本地模型：表格，每个 tag 一行，显示参数/量化/大小，模型名下方第二行是架构与
+    创建日期；每行有「更新」（重新拉取同一 tag）和「删除」（确认后从模型卷移除）
+  - 安装信息（CLI 目录、CLI 可执行文件、已安装状态、等价终端命令）
+  - 注意事项（registry 前缀、无鉴权 API）
 
-后端 PHP 走 `docker model` CLI，用 `proc_open` + 超时保证 WebGUI 不被卡住；
-操作接口只接受固定的 action 名，命令不来自请求。唯一的例外是监听地址：它先按 IP
-地址校验，拼进命令时再用 `escapeshellarg()` 转义，并存在
-`/boot/config/plugins/<name>/<name>.cfg` 里。
+后端 PHP 走 `docker model` 命令行，用 `proc_open` + 超时保证 WebGUI 不被卡住；
+操作接口只接受固定的 action 名，命令不来自请求。有两个请求值会进入命令行：监听地址
+先按 IP 校验、拼命令时用 `escapeshellarg()` 转义并存在
+`/boot/config/plugins/<name>/<name>.cfg` 里；模型标识符则先按 `docker model list
+--json` 的当前结果解析，只有解析到的本地模型才会被拼进 `pull`/`rm`。
 
-> ⚠️ 页面**尚未在真实 Unraid 主机的 Dynamix 里验证过**，见 `docs/05` 第四节。
+> 页面已在 NAS3 真机的 Dynamix 中渲染，并实际保存过监听地址（见 `docs/03` §8.4）；
+> Stop、重建 runner、模型更新/删除这几个动作仍未在真机点击验证。
 
 ---
 
@@ -298,14 +302,14 @@ readdir），改用 Python `tarfile` 统一写出，见提交 `b39e673`、`e6337
 
 ## 维护节奏
 
-上游 `docker-model-plugin` 发版频率约 2–4 周一次。当前上游最新版本仍是 **1.2.9**
-（2026-10-27 核对 `Packages` 索引），与本项目捆绑版本一致，无需 bump。
+上游 `docker-model-plugin` 发版频率约 2–4 周一次。`Packages` 索引里已有
+**1.2.10**，项目的 upstream-check 也已开出 issue（#2 是 1.2.10 的 bump 请求）；本插件
+捆绑的仍是 **1.2.9**，bump 尚未执行。
 
 流程：
 
 1. `.github/workflows/upstream-check.yml` 每天 12:00 UTC 检查 apt 索引，发现新版本会自动开 issue
-   （工作流已配置；仓库 2026-10-26 创建，首次定时触发为 2026-10-27 12:00 UTC，
-   目前尚无运行记录，需确认首个 issue 能正常开出）
+   （工作流已实际运行：#1 修正了早期的误报，#2 是当前 1.2.10 的 bump 请求）
 2. 按 issue 提示跑 `DMR_VERSION=x.y.z ./scripts/build-plugin.sh`
 3. `make lint && make verify`，并在测试机上 smoke test（`docker model version` + `docker model status`）
 4. 更新 `CHANGELOG.md`，合并后打 tag，CI 自动发布 Release

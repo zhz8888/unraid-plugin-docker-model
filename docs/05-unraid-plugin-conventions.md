@@ -213,12 +213,14 @@ CDATA 里的 `&name;` 不会被 XML 解析器展开，会原样写进安装脚�
 
 以下内容无法在本地环境确认，需要在真实 Unraid 主机上验证：
 
-1. **`.plg` 安装器全流程尚未在真机跑通**。`docs/03-verification-log.md` 记录的
-   真机验证是**手工**装二进制得到的，不是走 `.plg` 装的。`docs/04-roadmap.md` 的
-   P3 仍然是下一步。
-2. **WebGUI 页面未在真机验证**。页面按官方 `.page` 约定编写，但没有在 Unraid
-   的 Dynamix 里实际渲染过。现在的卡片布局（`Menu="Utilities"` 的注册方式与
-   `sheets/DockerModelRunner.css`）同样尚未在真机上验证。
+1. **`.plg` 安装只完成了「安装」环节**。NAS3（Unraid 7.3.2）上已存在代理版
+   `.plg` 的安装产物（注册软链、flash 上的 `.plg` 与缓存 txz、已安装二进制，
+   见 `docs/03` §8.4），但**重启持久化**与 `plugin remove` 卸载仍未验证，
+   `docs/04-roadmap.md` 的 P3 因此只算部分完成。
+2. **WebGUI 页面已在真机渲染，但动作未全部验证**。页面文件部署到 NAS3 后，
+   卡片布局（`Menu="Utilities"` 的注册方式与 `sheets/DockerModelRunner.css`）已在
+   真实 Dynamix 中正常显示，用户还在页面上保存过监听地址（生成 cfg，见 `docs/03`
+   §8.4）；但 Stop、重建 runner、模型更新/删除这几个动作仍未在真机上点击验证。
 3. **开机重装行为**依赖官方安装器源码（已逐行核对）与 `rc.local`（已核对），
    但没有在本机上观察到实际的开机日志。
 4. **CA 的分类名** `Tools:System` 取自已收录的 `unraid-plg-zram`，但提交前应以
