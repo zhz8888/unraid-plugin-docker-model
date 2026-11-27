@@ -202,6 +202,16 @@ runner API **默认发布在 `0.0.0.0`**，局域网内任何设备都可以通�
 API 依然没有鉴权。`0.0.0.0` 意味着能连到这个网络的任何设备都能用：请用防火墙限制
 `12434`，或者把页面改回 `127.0.0.1`。
 
+## 发布记录
+
+| 版本 | 日期 |
+|---|---|
+| [20261127](https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261127) | 2026-11-27 |
+| [20261111](https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261111) | 2026-11-11 |
+| [20261110](https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261110) | 2026-11-10 |
+| [20261106](https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261106) | 2026-11-06 |
+| [20261027](https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261027) | 2026-10-27 |
+
 ## 从源码构建
 
 不需要 Go 或 Rust 工具链——本仓库从不编译上游代码。

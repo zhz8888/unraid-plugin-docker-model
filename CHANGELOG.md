@@ -23,13 +23,17 @@ the WebGUI page.
 
 ## [Unreleased]
 
+The bundled `docker-model-plugin` stays at 1.2.9.
+
+## [20261127] - 2026-11-27
+
 The bundled `docker-model-plugin` stays at 1.2.9. This release reworks the
 WebGUI page: the version output of the CLI is parsed into localized rows, the
 runner can be stopped from the page without touching its image or models, a new
 Network card publishes the runner API on the LAN by default and stores the
-chosen address on the flash device, the local models are a table that can
-update or remove a single model, and the page is a grid of six equally sized
-cards.
+chosen address on the flash device, OpenAI-compatible clients can use a saved
+local API Key placeholder, the local models are a table that can update or
+remove a single model, and the page is a grid of six equally sized cards.
 
 ### Added
 
@@ -47,22 +51,29 @@ cards.
   runner at `http://<NAS-IP>:12434`. The card also shows the addresses the
   container is actually published on, so the effect of the setting is visible
   instead of having to be trusted
+- A **local API Key** field on the Network card for OpenAI-compatible
+  clients, which require an `api_key` value even when they connect to the
+  local runner. It defaults to `local`, accepts 1–128 letters, digits or
+  `. _ ~ + / = -`, can be revealed with **Show**, and returns to `local`
+  when saved empty. The Installation card's Python example follows the saved
+  value. The key is never passed to `docker model` and does not enable runner
+  authentication
 - `save-settings` is the only action of the endpoint that is synchronous,
   and it sits behind the same origin and token checks as the others. The
   address is validated as an IP address on the server (`filter_var()` with
   `FILTER_VALIDATE_IP`) and quoted with `escapeshellarg()` when it is
   appended to the command line; an invalid value is refused instead of stored,
-  because it later becomes `docker model install-runner --host <ip>`. It is
-  the only request value the plugin stores, and the only one that ever reaches
-  a command line
-- The listen address is saved in
+  because it later becomes `docker model install-runner --host <ip>`. The API
+  Key is validated separately and is never included in a command
+- The listen address and API Key are saved in
   `/boot/config/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.cfg`,
-  an INI file with a single `DMR_HOST` key that is written to a temporary file
-  and renamed, so an interrupted request cannot leave half a file behind. It
-  sits next to the cached package on the flash device, where it survives a
-  reboot and, like the rest of that directory, a plugin removal. A missing,
-  unreadable or invalid value falls back to the `0.0.0.0` default, so a hand
-  edited file cannot break the page or the install command
+  an INI file with `DMR_HOST` and `DMR_API_KEY` keys that is written to a
+  temporary file with owner-only permissions (`0600`) and renamed, so an
+  interrupted request cannot leave half a file behind. It sits next to the
+  cached package on the flash device, where it survives a reboot and, like the
+  rest of that directory, a plugin removal. A missing, unreadable or invalid
+  address falls back to `0.0.0.0`; a missing or invalid API Key falls back to
+  `local`, so a hand edited file cannot break the page or the install command
 - A **Recreate runner** button on the Network card, because the published
   address is fixed when the container is created and a changed setting only
   affects the next container. It runs
@@ -89,7 +100,7 @@ cards.
   Installation and Notes.
   The grid stretches every card of a row to the height of the tallest one, and
   the body of a card is a column, so the action rows of a row line up instead
-  of floating in the middle of differently sized cards; the model list scrolls
+  of floating in the middle of differently sized cards; the model table scrolls
   inside its card instead of stretching it. The grid is one column below
   780 px, two columns from 780 px and three columns from 1500 px
 - `sheets/DockerModelRunner.css` is rewritten for that layout: typography,
@@ -129,6 +140,12 @@ cards.
 
 ### Fixed
 
+- The reproducible packager derived executable bits from the host filesystem,
+  so a build on Windows/MSYS shipped `docker-model` and `install/doinst.sh`
+  as `0644` even though the same build on Linux shipped them as `0755`. The
+  package layout now defines those two files as executable explicitly, making
+  the txz permissions identical on every platform; release verification reads
+  the mode from the archive instead of the host extraction
 - The Status card showed the raw output of `docker model version` inside a
   single table cell, so the two-section block of the CLI wrapped into an
   unreadable blob and a failed command wrote its error into the cell as if it
@@ -385,7 +402,8 @@ release checks.
   that the direct and the mirrored variant reference the same package and
   checksum
 
-[Unreleased]: https://github.com/zhz8888/unraid-plugin-docker-model/compare/20261111...HEAD
+[Unreleased]: https://github.com/zhz8888/unraid-plugin-docker-model/compare/20261127...HEAD
+[20261127]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261127
 [20261111]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261111
 [20261110]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261110
 [20261106]: https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261106

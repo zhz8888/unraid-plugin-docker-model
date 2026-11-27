@@ -235,6 +235,16 @@ The API is unauthenticated. `0.0.0.0` exposes it to every device that can
 reach the network: restrict port `12434` with a firewall, or switch the page
 back to `127.0.0.1`.
 
+## Releases
+
+| Version | Date |
+|---|---|
+| [20261127](https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261127) | 2026-11-27 |
+| [20261111](https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261111) | 2026-11-11 |
+| [20261110](https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261110) | 2026-11-10 |
+| [20261106](https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261106) | 2026-11-06 |
+| [20261027](https://github.com/zhz8888/unraid-plugin-docker-model/releases/tag/20261027) | 2026-10-27 |
+
 ## Build from source
 
 No Go or Rust toolchain is required — this repo never compiles upstream code.
