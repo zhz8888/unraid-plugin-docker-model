@@ -335,6 +335,16 @@ def collect(root):
     entries.sort(key=lambda p: p.split(os.sep))
     return entries
 
+# Windows does not expose the Unix executable bit through os.lstat(), even
+# for files chmodded by MSYS. Derive the mode from the package layout instead
+# of the host filesystem, otherwise a Windows build ships the CLI binary and
+# install hook as 0644 and Unraid cannot execute them.
+EXECUTABLE_FILES = {
+    'install/doinst.sh',
+    'usr/libexec/docker/cli-plugins/docker-model',
+}
+
+
 def make_tarinfo(rel, realpath):
     st = os.lstat(realpath)
     ti = tarfile.TarInfo('./' + rel if not rel.startswith('.') else rel)
@@ -354,8 +364,10 @@ def make_tarinfo(rel, realpath):
         ti.size = 0
     else:
         ti.type = tarfile.REGTYPE
-        # keep the executable bit for scripts and binaries, drop the rest
-        ti.mode = 0o755 if st.st_mode & 0o111 else 0o644
+        # Keep the executable bit for the two files the package layout
+        # defines as executable, independent of the host platform.
+        portable_rel = rel.replace(os.sep, '/')
+        ti.mode = 0o755 if portable_rel in EXECUTABLE_FILES else 0o644
         ti.size = st.st_size
     return ti
 

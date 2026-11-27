@@ -158,7 +158,20 @@ PY
   }
 
   check_exec() {
-    if [ -x "${TMP}/$1" ]; then
+    # Inspect the mode recorded in the archive instead of the extracted file.
+    # MSYS tar on Windows does not apply the executable bit to extensionless
+    # files, even when the txz member is correctly stored as 0755.
+    if python3 - "${TXZ}" "$1" <<'PY'
+import sys
+import tarfile
+
+archive, wanted = sys.argv[1], sys.argv[2].lstrip('./')
+with tarfile.open(archive, 'r:xz') as handle:
+    member = next((m for m in handle.getmembers() if m.name.lstrip('./') == wanted), None)
+if member is None or not member.isfile() or not (member.mode & 0o111):
+    sys.exit(1)
+PY
+    then
       ok "$1 present and executable"
     else
       bad "$1 missing or not executable"; FAIL=1
