@@ -328,8 +328,9 @@
 .dmr-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 0.35rem;
+    gap: 1.2rem;
+    margin-top: 1rem;
+    margin-bottom: 0.3rem;
 }
 
 .dmr-actions .button {
@@ -458,12 +459,22 @@
  * two of them have to fit into a table cell. The selector has to outrank
  * Unraid's button[type="button"] rule, which is (0,1,1). */
 .dmr-table button.dmr-mini {
-    margin: 0 0.2rem 0 0;
+    margin: 0;
     padding: 0.35rem 0.8rem;
     min-width: 0;
     font-size: 1.2rem;
     letter-spacing: 0.02em;
     line-height: 1.4;
+}
+
+/* The two row buttons are spaced by a flex gap, not by their own margins: a
+ * margin on them is overridden by the size rule of .dmr-mini. */
+.dmr-table__buttons {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 1rem;
+    white-space: nowrap;
 }
 
 /* ---------------------------------------------------------- responsive */

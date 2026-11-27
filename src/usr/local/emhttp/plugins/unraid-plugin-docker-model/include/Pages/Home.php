@@ -429,8 +429,13 @@ $actionEndpoint = '/plugins/' . DMR_PLUGIN_NAME . '/include/data/Action.php';
             tr.appendChild(modelCell('td', 'dmr-table__size', row.size || ''));
 
             var actions = modelCell('td', 'dmr-table__actions');
-            actions.appendChild(modelActionButton(row, 'update'));
-            actions.appendChild(modelActionButton(row, 'remove'));
+            // The two buttons sit in a flex wrapper with a gap: a margin on the
+            // buttons themselves loses against the size rule of .dmr-mini.
+            var actionButtons = document.createElement('span');
+            actionButtons.className = 'dmr-table__buttons';
+            actionButtons.appendChild(modelActionButton(row, 'update'));
+            actionButtons.appendChild(modelActionButton(row, 'remove'));
+            actions.appendChild(actionButtons);
             tr.appendChild(actions);
 
             body.appendChild(tr);
