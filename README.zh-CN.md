@@ -145,16 +145,17 @@ docker model run ai/smollm2:360M-Q4_K_M "Hello"
   每个按钮只在该状态下可用；
 - **Network**：runner API 的监听地址、本地客户端 API Key（默认 `local`）、
   容器实际发布的端口、设置文件，以及 **Save** 和 **Recreate runner** 按钮（见下）；
-- **Local models**：本地已有模型的表格，每个 tag 一行，显示参数、量化、架构、大小和创建
-  时间。每行可以「更新」（重新拉取同一个 tag，未变化的层直接复用）或「删除」（确认后从本地
-  模型卷移除），两项操作都在后台执行，日志写入 `/var/log/docker-model-runner-model.log`；
+- **Local models**：本地已有模型的表格，每个 tag 一行，显示参数、量化、大小，模型名
+  下方第二行是架构与创建日期。每行可以「更新」（重新拉取同一个 tag，未变化的层直接复用）
+  或「删除」（确认后从本地模型卷移除），两项操作都在后台执行，日志写入
+  `/var/log/docker-model-runner-model.log`；
 - **Installation**：CLI 插件目录、CLI 可执行文件、已安装的二进制、等价的
   终端命令（含保存的 `--host` 地址），以及使用已保存 API Key 的 OpenAI 兼容
   Python 客户端示例；
 - **Notes**：runner 附带的注意事项。
 
 六张卡片等宽等高：网格会把同一行的卡片拉伸到该行最高的那张，卡片上的按钮因此与
-旁边的卡片对齐；模型列表在卡片内部滚动。网格在 780px 以下单列、780px 起两列、
+旁边的卡片对齐；模型表格在卡片内部滚动。网格在 780px 以下单列、780px 起两列、
 1500px 起三列。
 
 所有需要调用 `docker` 的数据都在页面渲染完成后异步加载，因此 runner 停止时也不会
@@ -205,14 +206,14 @@ API 依然没有鉴权。`0.0.0.0` 意味着能连到这个网络的任何设备
 
 不需要 Go 或 Rust 工具链——本仓库从不编译上游代码。
 
-依赖：Bash 4+、`curl`、`tar`、`xz`、Python 3。
+依赖：Bash 4+、`make`、`curl`、`tar`、`xz`、Python 3。
 
 ```bash
 git clone https://github.com/zhz8888/unraid-plugin-docker-model.git
 cd unraid-plugin-docker-model
 
 make build     # 下载 -> 校验 SHA256 -> 解包 -> 打包 txz -> 生成 plg
-make lint      # 对生成的 .plg 做静态检查
+make lint      # .plg 检查 + PHP 语法 + 翻译文件
 make verify    # 校验哈希与包内结构
 
 ls dist/
@@ -302,7 +303,7 @@ Slackware 基础的 Unraid 上可直接运行。
 | 项目 | 要求 |
 |---|---|
 | Unraid | 7.0+（需要 `/usr/libexec/docker/cli-plugins/`） |
-| 架构 | x86_64（Unraid 仅支持 x86_64；也构建 arm64/armhf 包） |
+| 架构 | x86_64（Unraid 仅支持 x86_64）；`DMR_ARCH=arm64`/`armhf` 可在本地构建对应包，CI 与发布只出 x86_64 |
 | Docker | 20.10+（CLI 插件机制） |
 | 内存 | 1.5B Q4 模型建议 ≥ 8GB 可用 |
 | GPU | 可选，无 GPU 时用 `--gpu none` 纯 CPU 运行 |

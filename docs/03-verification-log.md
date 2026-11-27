@@ -1,6 +1,8 @@
 # 验证记录
 
-所有数据来自 **2026-10-26** 在测试机（Unraid 7.3.2 / Docker 29.5.3 / 双路 Xeon E5-2680 v2，64GB 内存）上的实测。
+第一至七节的数据来自 **2026-10-26** 在测试机（Unraid 7.3.2 / Docker 29.5.3 /
+双路 Xeon E5-2680 v2，64GB 内存）上的实测；第八节是 2026-11-26/27 的本地与 NAS3
+真机验证，来源不同，节内单独注明。
 
 ## 一、环境基线
 
@@ -127,7 +129,8 @@ a4a42032afed1e51de7546722e1769d2f5013df3  built3     <- 三次构建完全一致
 $ diff <(strings built | grep -o "docker model [a-z-]*" | sort -u) \
        <(strings deb  | grep -o "docker model [a-z-]*" | sort -u)
 （无输出）
-24 条命令完全一致
+→ 命令集合完全一致；1.2.9 的 `docker model --help` 列出 28 个 Commands
+  加 `context` 管理命令（其中 `gateway` 是 stub，不可用）
 ```
 
 ### ⚠️ 但源码编译有版本号陷阱
@@ -194,6 +197,12 @@ d86f4e9367b6292afa5f05081521e0459cccde1caca580786b1a811bd0359ca5
 > 注意：这个缺陷只在 macOS 上出现。Linux/CI 上 GNU tar 不读取扩展属性，
 > 但 `--no-xattrs` 参数做能力探测后才传，避免在不支持的 tar 上直接报错。
 
+> **最终方案**：发布包的归档改由 Python `tarfile` 写出（固定 mtime、成员顺序、
+> 权限），不再依赖 `tar`。20261027 的 txz SHA256 为
+> `0d545fb9e7e2f098b79d249757e5b839ebddaa981b493ee3f6b84c115d43e905`；此后
+> 20261106 / 20261110 / 20261111 沿用同一实现，CI 每次构建两遍比对哈希。上面两次
+> 跨目录实验属于改用 Python 之前的中间阶段，保留作为问题定位记录。
+
 ---
 
 ## 五、插件在测试机上的完整跑通记录
@@ -235,6 +244,9 @@ Docker Model Runner is running
 llama.cpp  Running  llama.cpp 72874f559
 ```
 
+> 这里的端口是当时从终端手工执行 `install-runner`（不带 `--host`）的结果；
+> 页面安装 runner 时的默认监听地址是 `0.0.0.0`，见 `docs/02` 第二节。
+
 ### 5.4 模型拉取与推理
 
 ```
@@ -267,10 +279,11 @@ sentiment analysis, topic modeling, and language translation.
 同机实测 smollm2-360M 为秒级响应。1.5B Q4 的推算值见会话记录：
 生成 14–18 tok/s、预填充 180–280 tok/s（瓶颈为 4 通道 DDR3-1600 + 无 AVX2）。
 
-## 八、2026-11-26 WebGUI 改动的本地验证
+## 八、2026-11-26 WebGUI 改动的验证
 
-本次改动（版本信息结构化、Stop 按钮、网络卡片、卡片布局）在**开发机**上验证，不是
-在真实 Unraid 的 Dynamix 里渲染的；真机渲染仍然待做（见 `docs/05` 第四节）。
+本节记录 2026-11-26 起 WebGUI 改动的验证：先在本机用 PHP + 假 docker CLI 验证
+（8.1–8.3），再到 NAS3 真机部署页面并让页面真正跑起来（8.4）。覆盖范围包括版本信息
+结构化、Stop 按钮、网络卡片、本地模型表格（更新/删除）、字号标定与卡片布局。
 
 ### 8.1 捆绑二进制的命令面
 
@@ -297,25 +310,46 @@ sentiment analysis, topic modeling, and language translation.
 | `--host` 校验（IPv4 / IPv6 / 非法值 / 空） | ✅ |
 | 设置文件写入、回读、非法值回退默认 `0.0.0.0` | ✅ |
 | GPU 模式从镜像 tag 反查（cpu/cuda/rocm） | ✅ |
-| `Status.php` 输出结构（version / runner / runner_ports / models / settings） | ✅ |
+| `Status.php` 输出结构（version / runner / runner_ports / models / models_error / settings） | ✅ |
 | `Action.php` save-settings 写入 + 非法地址拒绝 + 跨源拒绝 | ✅ |
+| 模型动作：`update-model` / `remove-model` 的解析、伪造引用拒绝、命令拼装 | ✅ |
+| 模型列表解析（`docker model list --json`，含无 tag 模型、非法 JSON 回退） | ✅ |
 
 ### 8.3 页面渲染（Playwright + 本地 PHP 服务器 + 假 docker）
 
 在 1440 / 1100 / 700 px 三种宽度、中英文两种语言下截图测量：
 
-- 六张卡片齐全，**同一行的卡片高度完全相等**（1440 px 下 316/316、301/301、303/303）
+- 六张卡片齐全，**同一行的卡片高度完全相等**（1440 px 下：字号标定前一次运行为
+  316/316、301/301、303/303；标定后为 399/406/425，逐行仍相等）
 - Status 卡显示解析后的四行（客户端版本 1.2.9、客户端平台 linux/amd64、服务端版本
   1.0.0、服务端引擎 Docker Engine），原始输出收在折叠块里
 - runner 运行中：安装按钮禁用、停止/卸载/重建可用；停止状态相反（已用假 CLI 状态切换验证）
 - 命令失败时：红色提示条显示 CLI 报错，原始输出自动展开
 - Network 卡：下拉框回显 `0.0.0.0`、已发布端口显示 `0.0.0.0:12434->12434/tcp, …`
+- 本地模型表格：2 行、每行「更新/删除」两个按钮；行内按钮实测间距 10 px、不换行，
+  表格不超出卡片宽度
 - 浏览器控制台：**无错误**（无 4xx/5xx 请求、无 JS 异常）
 
-> 这次验证覆盖的是「页面结构与交互逻辑」，不是真实 Docker 守护进程的行为；后者仍需
-> 在真机上点一遍 Stop / 保存 / 重建 runner。
+### 8.4 NAS3 真机（2026-11-26 / 27）
 
-### 8.4 本地 API Key 设置（2026-11-27）
+- **安装产物**：NAS3（Unraid 7.3.2）上存在代理版 `.plg` 的安装结果——注册软链
+  `/var/log/plugins/unraid-plugin-docker-model-proxy.plg`、flash 上的
+  `unraid-plugin-docker-model-proxy.plg` 与缓存包
+  `unraid-plugin-docker-model-20261106-x86_64-1.txz`、已安装的
+  `/usr/libexec/docker/cli-plugins/docker-model`。这说明 `.plg` 安装路径已在真机
+  执行过；重启持久化与 `plugin remove` 卸载尚未记录。
+- **页面渲染**：把当前仓库的 WebGUI 文件部署到 NAS3 后，页面在真实 Dynamix 中正常
+  渲染；用户在页面上保存了监听地址，生成
+  `/boot/config/plugins/unraid-plugin-docker-model/unraid-plugin-docker-model.cfg`
+  （`DMR_HOST="0.0.0.0"`，2026-11-26 20:01），说明 save-settings 在真机可用。
+- **尚未真机验证**：Stop、重建 runner、模型更新/删除（日志
+  `/var/log/docker-model-runner-model.log`）的端到端行为，以及 `.plg` 的重启持久化
+  与卸载。
+
+> 本地验证覆盖页面结构与交互逻辑；真机上的保存动作已实际执行（8.4），但 Stop、
+> 重建 runner、模型更新/删除仍需在真机上逐一点过。
+
+### 8.5 本地 API Key 设置（2026-11-27）
 
 - 重新检查捆绑的 `docker-model` 1.2.9 二进制：没有 `--api-key` 参数，内置 OpenAI
   示例也写明本地推理不需要 API Key。因此新增的 `DMR_API_KEY` 只是 OpenAI 兼容

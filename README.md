@@ -152,9 +152,9 @@ page is a grid of cards, one per function:
   pills — CLI, Runner and Models — plus a **Refresh** button;
 - **Status** — the plugin version, the bundled docker-model version and the
   upstream artifact, plus `docker model version` split into one row per field:
-  client version, client platform, server version and server engine. The raw output is kept in a collapsed **Raw output** block
-  for troubleshooting and opened automatically when the CLI prints a layout
-  the page does not know;
+  client version, client platform, server version and server engine. The raw
+  output is kept in a collapsed **Raw output** block for troubleshooting and
+  opened automatically when the CLI prints a layout the page does not know;
 - **Model Runner** — the state of the runner and the buttons that install it
   (CPU only or GPU auto), **Stop** it or remove it. Stop removes the container
   and keeps the runner image and the model volume; every button is enabled only
@@ -164,10 +164,11 @@ page is a grid of cards, one per function:
   published on, the settings file, and the **Save** and **Recreate runner** buttons (see
   [Publishing the runner on the network](#publishing-the-runner-on-the-network));
 - **Local models** — a table of the models that are available locally, one row
-  per tag, with the parameters, quantization, architecture, size and creation
-  time. Every row can be updated (pull the same tag again; layers that did not
-  change are reused) or removed after a confirmation. Both actions run in the
-  background and log to `/var/log/docker-model-runner-model.log`;
+  per tag, with the parameters, quantization and size; the architecture and
+  the creation date are a second line under the model name. Every row can be
+  updated (pull the same tag again; layers that did not change are reused) or
+  removed after a confirmation. Both actions run in the background and log to
+  `/var/log/docker-model-runner-model.log`;
 - **Installation** — the CLI directory, the CLI binary, the installed binary,
   the equivalent terminal commands (including the stored `--host` address), and
   an OpenAI-compatible Python client example that uses the saved API Key;
@@ -175,7 +176,7 @@ page is a grid of cards, one per function:
 
 The six cards are equal sized: the grid stretches every card of a row to the
 height of the tallest one, so the buttons of a card line up with the buttons of
-the cards next to it, and the model list scrolls inside its card. The grid is
+the cards next to it, and the model table scrolls inside its card. The grid is
 one column below 780 px, two columns from 780 px and three columns from
 1500 px.
 
@@ -238,14 +239,14 @@ back to `127.0.0.1`.
 
 No Go or Rust toolchain is required — this repo never compiles upstream code.
 
-Requirements: Bash 4+, `curl`, `tar`, `xz`, Python 3.
+Requirements: Bash 4+, `make`, `curl`, `tar`, `xz`, Python 3.
 
 ```bash
 git clone https://github.com/zhz8888/unraid-plugin-docker-model.git
 cd unraid-plugin-docker-model
 
 make build     # download -> verify SHA256 -> unpack -> txz -> plg
-make lint      # static checks on the generated .plg
+make lint      # .plg checks, PHP syntax and locale files
 make verify    # hash and layout verification
 
 ls dist/
@@ -341,7 +342,7 @@ package runs unmodified on Slackware-based Unraid.
 | | Requirement |
 |---|---|
 | Unraid | 7.0+ (needs `/usr/libexec/docker/cli-plugins/`) |
-| Architecture | x86_64 (Unraid is x86_64-only; arm64/armhf packages are also built) |
+| Architecture | x86_64 (Unraid is x86_64-only); `DMR_ARCH=arm64`/`armhf` builds a package locally, CI and the releases ship x86_64 |
 | Docker | 20.10+ (CLI plugin mechanism) |
 | Memory | 8 GB+ free recommended for a 1.5B Q4 model |
 | GPU | Optional — works CPU-only with `--gpu none` |

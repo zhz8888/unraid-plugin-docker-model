@@ -98,16 +98,22 @@ cards.
   buttons. The type scale is calibrated for the 10px root of the WebGUI
   (`html { font-size: 62.5% }`), so the page text is 14px instead of the 10px
   the old `rem` values produced there, and it still grows with the font size
-  setting of the WebGUI. The stylesheet uses only theme variables with
+  setting of the WebGUI. The action rows and the two buttons of a model row
+  are spaced by an explicit gap (12 px and 10 px), so the buttons do not sit
+  flush against each other. The stylesheet uses only theme variables with
   fallbacks, so it follows the light and the dark theme
 - The status and action endpoints return the shape the new page needs.
   `Status.php` reports the parsed version fields, the state and the published
-  ports of the runner, the local models and the stored listen address instead
-  of the raw version text, and `Action.php` accepts the same fixed action names
-  plus `save-settings`, appends the stored `--host` to install and reinstall,
-  and answers every action with `{ok, message}` (`host` on a save). The request
-  still selects an action and never a command; the listen address is the one
-  value that reaches a command line, and only after validation
+  ports of the runner, the local models (and the error of a failed listing)
+  and the stored listen address instead of the raw version text, and
+  `Action.php` accepts the same fixed action names plus `save-settings`,
+  `update-model` and `remove-model`, appends the stored `--host` to install
+  and reinstall, and answers every action with `{ok, message}` (`host` on a
+  save). The request still selects an action and never a command. Two request
+  values reach a command line: the listen address, validated as an IP address,
+  and the model of an update or remove, resolved against the identifiers that
+  `docker model list --json` just printed so that only a local model can be
+  addressed; both are quoted with `escapeshellarg()`
 - The terminal command list on the Installation card shows the commands the
   page actually runs, with the stored `--host` address and `stop-runner` and
   `reinstall-runner` included
