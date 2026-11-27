@@ -27,7 +27,11 @@
         }
     ],
     "files": [
-        "/var/log/docker-model-runner-install.log"
+        "/var/log/docker-model-runner-install.log",
+        "/var/log/docker-model-runner-stop.log",
+        "/var/log/docker-model-runner-reinstall.log",
+        "/var/log/docker-model-runner-uninstall.log",
+        "/var/log/docker-model-runner-model.log"
     ],
     "system_diagnostics": true
 }

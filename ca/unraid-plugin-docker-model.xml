@@ -40,14 +40,15 @@
     [b]Features:[/b]
     - Pull, run and serve AI models on your Unraid server.
     - The `docker model` CLI plugin is installed into the Docker CLI plugin directory and restored on every boot.
-    - A Settings page reports the CLI version, the Model Runner state and the models that are available locally.
-    - One click install of the Model Runner for CPU only or with GPU support.
+    - A Settings page reports the CLI version, the Model Runner state and the local models as a table with per-model update and remove actions.
+    - Install, stop and remove the Model Runner from the page (CPU only or GPU auto); the runner image is pulled on demand.
+    - The page sets the address the runner API is published on (all interfaces by default) and shows the ports the container is actually published on.
 
     [b]Requirements:[/b]
     - Unraid 7.0 or newer
     - Docker 20.10 or newer
 
-    The runner container is not installed by the plugin. Deploy it on demand with `docker model install-runner`.
+    The runner image is not shipped in the plugin package; it is pulled on demand when the runner is installed from the page or with `docker model install-runner`.
   </Overview>
   <Support>https://github.com/zhz8888/unraid-plugin-docker-model/issues</Support>
   <Project>https://github.com/zhz8888/unraid-plugin-docker-model</Project>
